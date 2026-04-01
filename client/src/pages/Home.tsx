@@ -3,6 +3,7 @@
  * Full page composition: Navbar → Hero → Testimonials → Products → About → CTA → Location → Contact → Footer
  * WhatsApp floating button always visible
  */
+import { useAuth } from "@/_core/hooks/useAuth";
 import Navbar from "@/components/Navbar";
 import HeroSection from "@/components/HeroSection";
 import TestimonialsSection from "@/components/TestimonialsSection";
@@ -15,6 +16,8 @@ import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function Home() {
+  const { user, isAuthenticated } = useAuth();
+
   return (
     <div className="min-h-screen bg-[#FDFAF6]">
       <Navbar />

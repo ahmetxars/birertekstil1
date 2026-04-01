@@ -1,50 +1,12 @@
 /*
- * DESIGN: Soft Luxury — product category cards with hover lift effect
- * 5 categories: Bedding, Towels, Curtains, Blankets, Custom Orders
- * Generated images for first 4, icon for Custom Orders
+ * DESIGN: Soft Luxury — product grid with featured badge, hover effects
+ * Fetches products from tRPC API
  */
-import { ArrowRight, Sparkles } from "lucide-react";
+import { ArrowRight, Sparkles, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { trpc } from "@/lib/trpc";
 
-const products = [
-  {
-    id: "bedding",
-    title: "Yatak Takımları",
-    description: "Otel kalitesinde pamuklu nevresim takımları, çarşaflar ve yastık kılıfları. Tek ve çift kişilik seçenekler.",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663504475842/V35mdTAbcAaYYYAzaZoLnS/product-bedding-aeZ3U65CojnQPbBJno7Hp3.webp",
-    tag: "En Çok Satan",
-  },
-  {
-    id: "towels",
-    title: "Havlu & Banyo Tekstili",
-    description: "Yumuşak ve emici pamuklu banyolu havlular, el havluları ve bornozlar. Toptan ve perakende.",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663504475842/V35mdTAbcAaYYYAzaZoLnS/product-towels-LvEb3a3E2yEE7qYeuEktBf.webp",
-    tag: "Otel Tercihi",
-  },
-  {
-    id: "curtains",
-    title: "Perdeler",
-    description: "Keten, tül ve blackout perde seçenekleri. Evinize özel ölçü ve renk alternatifleri.",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663504475842/V35mdTAbcAaYYYAzaZoLnS/product-curtains-ganMbxKmv9PC3W5NySuraP.webp",
-    tag: null,
-  },
-  {
-    id: "blankets",
-    title: "Battaniyeler",
-    description: "Dört mevsim battaniyeler, pike ve yorgan takımları. Sıcak tutan ve nefes alan kumaşlar.",
-    image: "https://d2xsxph8kpxj0f.cloudfront.net/310519663504475842/V35mdTAbcAaYYYAzaZoLnS/product-blankets-KkgMYakq5Tz7cwLgkubCa8.webp",
-    tag: null,
-  },
-  {
-    id: "custom",
-    title: "Özel Siparişler",
-    description: "Logo baskılı havlular, özel ölçü yatak takımları ve kurumsal tekstil çözümleri. Otel, Airbnb ve işletmelere özel.",
-    image: null,
-    tag: "B2B",
-  },
-];
-
-function ProductCard({ product, delay }: { product: typeof products[0]; delay: number }) {
+function ProductCard({ product, delay }: { product: any; delay: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -74,9 +36,9 @@ function ProductCard({ product, delay }: { product: typeof products[0]; delay: n
     >
       {/* Image */}
       <div className="relative overflow-hidden bg-[#F5EFE8]" style={{ aspectRatio: "4/3" }}>
-        {product.image ? (
+        {product.imageUrl ? (
           <img
-            src={product.image}
+            src={product.imageUrl}
             alt={product.title}
             className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
             loading="lazy"
@@ -84,14 +46,14 @@ function ProductCard({ product, delay }: { product: typeof products[0]; delay: n
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center gap-3">
             <Sparkles size={40} className="text-[#B5541A]/40" />
-            <span className="text-sm text-[#8B6B5A] font-medium">Özel Tasarım</span>
+            <span className="text-sm text-[#8B6B5A] font-medium">Resim Yok</span>
           </div>
         )}
 
-        {/* Tag badge */}
-        {product.tag && (
+        {/* Featured badge */}
+        {product.featured && (
           <div className="absolute top-3 left-3 bg-[#B5541A] text-white text-xs font-bold px-3 py-1 rounded-full">
-            {product.tag}
+            Öne Çıkartılmış
           </div>
         )}
       </div>
@@ -104,9 +66,11 @@ function ProductCard({ product, delay }: { product: typeof products[0]; delay: n
         >
           {product.title}
         </h3>
-        <p className="text-sm text-[#6B4F40] leading-relaxed flex-1 mb-5">
-          {product.description}
-        </p>
+        {product.description && (
+          <p className="text-sm text-[#6B4F40] leading-relaxed flex-1 mb-5">
+            {product.description}
+          </p>
+        )}
         <a
           href="#contact"
           onClick={handleCTA}
@@ -123,6 +87,7 @@ function ProductCard({ product, delay }: { product: typeof products[0]; delay: n
 export default function ProductsSection() {
   const titleRef = useRef<HTMLDivElement>(null);
   const [titleVisible, setTitleVisible] = useState(false);
+  const { data: products, isLoading } = trpc.products.list.useQuery();
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -169,11 +134,21 @@ export default function ProductsSection() {
         </div>
 
         {/* Product Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
-          {products.map((product, i) => (
-            <ProductCard key={product.id} product={product} delay={i * 80} />
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="w-8 h-8 animate-spin text-[#B5541A]" />
+          </div>
+        ) : products && products.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-7">
+            {products.map((product, i) => (
+              <ProductCard key={product.id} product={product} delay={i * 80} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12">
+            <p className="text-[#8B6B5A]">Henüz ürün eklenmemiş</p>
+          </div>
+        )}
       </div>
     </section>
   );

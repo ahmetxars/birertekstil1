@@ -4,6 +4,9 @@
  */
 import { useState, useEffect } from "react";
 import { Menu, X, Phone } from "lucide-react";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { getLoginUrl } from "@/const";
+import { Link } from "wouter";
 
 const navLinks = [
   { label: "Ürünlerimiz", href: "#products" },
@@ -15,6 +18,7 @@ const navLinks = [
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { user, isAuthenticated, logout } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -81,13 +85,30 @@ export default function Navbar() {
               <Phone size={14} />
               <span className="font-medium">Bizi Arayın</span>
             </a>
-            <a
-              href="#contact"
-              onClick={(e) => handleNavClick(e, "#contact")}
-              className="btn-cta text-sm py-2 px-5"
-            >
-              Teklif Al
-            </a>
+            {isAuthenticated ? (
+              <>
+                {user?.role === "admin" && (
+                  <Link href="/admin">
+                    <a className="text-sm font-medium text-[#5C3D2E]/80 hover:text-[#B5541A] transition-colors">
+                      Admin
+                    </a>
+                  </Link>
+                )}
+                <button
+                  onClick={() => logout()}
+                  className="text-sm font-medium text-[#5C3D2E]/80 hover:text-[#B5541A] transition-colors"
+                >
+                  Çıkış
+                </button>
+              </>
+            ) : (
+              <a
+                href={getLoginUrl()}
+                className="btn-cta text-sm py-2 px-5"
+              >
+                Teklif Al
+              </a>
+            )}
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -115,13 +136,30 @@ export default function Navbar() {
                 {link.label}
               </a>
             ))}
-            <a
-              href="#contact"
-              onClick={(e) => handleNavClick(e, "#contact")}
-              className="btn-cta text-sm justify-center mt-2"
-            >
-              Teklif Al
-            </a>
+            {isAuthenticated ? (
+              <>
+                {user?.role === "admin" && (
+                  <Link href="/admin">
+                    <a className="text-base font-medium text-[#5C3D2E] hover:text-[#B5541A] transition-colors py-1">
+                      Admin
+                    </a>
+                  </Link>
+                )}
+                <button
+                  onClick={() => logout()}
+                  className="text-base font-medium text-[#5C3D2E] hover:text-[#B5541A] transition-colors py-1 text-left"
+                >
+                  Çıkış
+                </button>
+              </>
+            ) : (
+              <a
+                href={getLoginUrl()}
+                className="btn-cta text-sm justify-center mt-2"
+              >
+                Teklif Al
+              </a>
+            )}
           </div>
         </div>
       )}
