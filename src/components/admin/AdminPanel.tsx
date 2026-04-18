@@ -69,6 +69,7 @@ import {
   SheetContent,
   SheetTitle,
 } from '@/components/ui/sheet'
+import { useRouter } from 'next/navigation'
 import { useStore, type AdminTab } from '@/store/useStore'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -84,6 +85,8 @@ interface Category {
   slug: string
   description?: string | null
   order?: number
+  parentId?: string | null
+  parent?: { id: string; name: string; slug: string } | null
   _count?: { products: number }
 }
 
@@ -113,6 +116,17 @@ interface ContentFormData {
   aboutText: string
   seoTitle: string
   seoDescription: string
+}
+
+interface SiteSettingsData {
+  whatsappNumber: string
+  phone: string
+  address: string
+  email: string
+  instagramUrl: string
+  heroTitle: string
+  heroSubtitle: string
+  aboutText: string
 }
 
 interface SettingsFormData {
@@ -196,7 +210,8 @@ const sidebarItemVariants = {
 /* ================================================================== */
 
 export default function AdminPanel() {
-  const { adminTab, setAdminTab, navigate } = useStore()
+  const router = useRouter()
+  const { adminTab, setAdminTab } = useStore()
 
   /* ---- Data state ---- */
   const [products, setProducts] = useState<Product[]>([])
@@ -218,6 +233,13 @@ export default function AdminPanel() {
   /* ---- Delete state ---- */
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
 
+  /* ---- Category form state ---- */
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [categoryForm, setCategoryForm] = useState({ name: '', slug: '', description: '', parentId: '' })
+  const [categorySaving, setCategorySaving] = useState(false)
+  const [categoryDeleteTarget, setCategoryDeleteTarget] = useState<Category | null>(null)
+
   /* ---- Content & Settings form state ---- */
   const [contentForm, setContentForm] = useState<ContentFormData>(defaultContentForm)
   const [contentSaving, setContentSaving] = useState(false)
@@ -230,14 +252,34 @@ export default function AdminPanel() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
+      const [productsRes, categoriesRes, settingsRes] = await Promise.all([
         fetch('/api/products'),
         fetch('/api/categories'),
+        fetch('/api/settings'),
       ])
       const productsData = await productsRes.json()
       const categoriesData = await categoriesRes.json()
+      const settingsData = await settingsRes.json()
       setProducts(productsData)
       setCategories(categoriesData)
+      if (settingsData && !settingsData.error) {
+        setSettingsForm({
+          siteName: 'Birer Tekstil',
+          whatsappNumber: settingsData.whatsappNumber || '',
+          phone: settingsData.phone || '',
+          address: settingsData.address || '',
+          email: settingsData.email || '',
+          instagramUrl: settingsData.instagramUrl || '',
+          facebookUrl: '',
+        })
+        setContentForm({
+          heroTitle: settingsData.heroTitle || '',
+          heroSubtitle: settingsData.heroSubtitle || '',
+          aboutText: settingsData.aboutText || '',
+          seoTitle: 'Birer Tekstil - Ev Tekstili',
+          seoDescription: 'Birer Tekstil ev tekstili ürünleri',
+        })
+      }
     } catch {
       toast.error('Veriler yüklenirken hata oluştu')
     } finally {
@@ -259,7 +301,96 @@ export default function AdminPanel() {
   }
 
   const handleBackToSite = () => {
-    navigate('home')
+    router.push('/')
+  }
+
+  /* ---- Category handlers ---- */
+
+  const slugify = (str: string) =>
+    str.toLowerCase()
+      .replace(/ğ/g, 'g').replace(/ü/g, 'u').replace(/ş/g, 's')
+      .replace(/ı/g, 'i').replace(/ö/g, 'o').replace(/ç/g, 'c')
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+
+  const openAddCategory = () => {
+    setEditingCategory(null)
+    setCategoryForm({ name: '', slug: '', description: '', parentId: '' })
+    setCategoryDialogOpen(true)
+  }
+
+  const openEditCategory = (cat: Category) => {
+    setEditingCategory(cat)
+    setCategoryForm({ name: cat.name, slug: cat.slug, description: cat.description || '', parentId: cat.parentId || '' })
+    setCategoryDialogOpen(true)
+  }
+
+  const closeCategoryDialog = () => {
+    setCategoryDialogOpen(false)
+    setEditingCategory(null)
+    setCategoryForm({ name: '', slug: '', description: '', parentId: '' })
+  }
+
+  const handleSaveCategory = async () => {
+    if (!categoryForm.name) {
+      toast.error('Kategori adı zorunludur')
+      return
+    }
+    const slug = categoryForm.slug || slugify(categoryForm.name)
+    setCategorySaving(true)
+    try {
+      let res: Response
+      if (editingCategory) {
+        res = await fetch(`/api/categories/${editingCategory.slug}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: categoryForm.name, slug, description: categoryForm.description }),
+        })
+      } else {
+        const nextGroup = categories.length > 0
+          ? Math.max(...categories.map((c) => c.groupNumber)) + 1
+          : 1
+        res = await fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: categoryForm.name,
+            slug,
+            description: categoryForm.description,
+            groupNumber: nextGroup,
+            parentId: categoryForm.parentId || null,
+          }),
+        })
+      }
+      if (res.ok) {
+        toast.success(editingCategory ? 'Kategori güncellendi' : 'Kategori oluşturuldu')
+        closeCategoryDialog()
+        fetchData()
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Bir hata oluştu')
+      }
+    } catch {
+      toast.error('Bağlantı hatası')
+    } finally {
+      setCategorySaving(false)
+    }
+  }
+
+  const handleDeleteCategory = async () => {
+    if (!categoryDeleteTarget) return
+    try {
+      const res = await fetch(`/api/categories/${categoryDeleteTarget.slug}`, { method: 'DELETE' })
+      if (res.ok) {
+        toast.success('Kategori silindi')
+        setCategories((prev) => prev.filter((c) => c.id !== categoryDeleteTarget.id))
+        setCategoryDeleteTarget(null)
+      } else {
+        const err = await res.json()
+        toast.error(err.error || 'Silinirken hata oluştu')
+      }
+    } catch {
+      toast.error('Bağlantı hatası')
+    }
   }
 
   /* ---- Product handlers ---- */
@@ -404,20 +535,56 @@ export default function AdminPanel() {
 
   /* ---- Content & Settings handlers ---- */
 
-  const handleContentSave = () => {
+  const handleContentSave = async () => {
     setContentSaving(true)
-    setTimeout(() => {
+    try {
+      const payload: Partial<SiteSettingsData> = {
+        heroTitle: contentForm.heroTitle,
+        heroSubtitle: contentForm.heroSubtitle,
+        aboutText: contentForm.aboutText,
+      }
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        toast.success('İçerik ayarları kaydedildi')
+      } else {
+        toast.error('Kaydedilemedi')
+      }
+    } catch {
+      toast.error('Bağlantı hatası')
+    } finally {
       setContentSaving(false)
-      toast.success('İçerik ayarları kaydedildi')
-    }, 800)
+    }
   }
 
-  const handleSettingsSave = () => {
+  const handleSettingsSave = async () => {
     setSettingsSaving(true)
-    setTimeout(() => {
+    try {
+      const payload: Partial<SiteSettingsData> = {
+        whatsappNumber: settingsForm.whatsappNumber,
+        phone: settingsForm.phone,
+        address: settingsForm.address,
+        email: settingsForm.email,
+        instagramUrl: settingsForm.instagramUrl,
+      }
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (res.ok) {
+        toast.success('Site ayarları kaydedildi')
+      } else {
+        toast.error('Kaydedilemedi')
+      }
+    } catch {
+      toast.error('Bağlantı hatası')
+    } finally {
       setSettingsSaving(false)
-      toast.success('Site ayarları kaydedildi')
-    }, 800)
+    }
   }
 
   /* ================================================================ */
@@ -430,6 +597,7 @@ export default function AdminPanel() {
 
   const totalProducts = products.length
   const totalCategories = categories.length
+  const totalParentCategories = categories.filter((c) => !c.parentId).length
   const totalFeatured = products.filter((p) => p.featured).length
 
   /* ================================================================ */
@@ -499,7 +667,7 @@ export default function AdminPanel() {
         bg: 'bg-[#a67c52]/10',
       },
       {
-        label: 'Kategoriler',
+        label: `Kategoriler (${totalParentCategories} ana)`,
         value: totalCategories,
         icon: FolderOpen,
         color: 'text-[#8b7355]',
@@ -968,11 +1136,20 @@ export default function AdminPanel() {
   const renderCategories = () => (
     <div className="space-y-5">
       {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-[#3d2c1e]">Kategoriler</h2>
-        <p className="text-sm text-[#8b7355] mt-1">
-          {totalCategories} kategori listeleniyor
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold text-[#3d2c1e]">Kategoriler</h2>
+          <p className="text-sm text-[#8b7355] mt-1">
+            {totalCategories} kategori listeleniyor
+          </p>
+        </div>
+        <Button
+          onClick={openAddCategory}
+          className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Kategori Ekle
+        </Button>
       </div>
 
       {/* Categories Table */}
@@ -1004,74 +1181,128 @@ export default function AdminPanel() {
                     <th className="text-right p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
                       Ürün Sayısı
                     </th>
+                    <th className="p-4" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f0ebe3]">
-                  {categories.map((cat, i) => (
-                    <motion.tr
-                      key={cat.id}
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      transition={{ delay: i * 0.04 }}
-                      className="hover:bg-[#f8f5f0]/50 transition-colors"
-                    >
-                      <td className="p-4">
-                        <span className="text-sm font-bold text-[#a67c52]">
-                          {cat.groupNumber}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <span className="font-medium text-[#3d2c1e] text-sm">
-                          {cat.name}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <code className="text-xs text-[#8b7355] bg-[#f8f5f0] px-2 py-1 rounded">
-                          {cat.slug}
-                        </code>
-                      </td>
-                      <td className="p-4">
-                        <span className="text-sm text-[#8b7355] truncate max-w-[200px] block">
-                          {cat.description || '-'}
-                        </span>
-                      </td>
-                      <td className="p-4 text-right">
-                        <Badge className="bg-[#a67c52]/10 text-[#a67c52] border-0 text-xs">
-                          {cat._count?.products ?? 0} ürün
-                        </Badge>
-                      </td>
-                    </motion.tr>
-                  ))}
+                  {categories.map((cat, i) => {
+                    const isChild = !!cat.parentId
+                    return (
+                      <motion.tr
+                        key={cat.id}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: i * 0.03 }}
+                        className={`hover:bg-[#f8f5f0]/50 transition-colors ${isChild ? 'bg-[#faf8f5]' : ''}`}
+                      >
+                        <td className="p-4">
+                          <span className={`text-sm font-bold ${isChild ? 'text-[#c4b49a]' : 'text-[#a67c52]'}`}>
+                            {isChild ? '└' : cat.groupNumber}
+                          </span>
+                        </td>
+                        <td className="p-4">
+                          <span className={`font-medium text-sm ${isChild ? 'text-[#8b7355] pl-4' : 'text-[#3d2c1e]'}`}>
+                            {isChild && <span className="text-[#c4b49a] mr-1">↳</span>}
+                            {cat.name}
+                          </span>
+                          {isChild && cat.parent && (
+                            <span className="text-[10px] text-[#c4b49a] block pl-4 mt-0.5">
+                              {cat.parent.name}
+                            </span>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <code className="text-xs text-[#8b7355] bg-[#f8f5f0] px-2 py-1 rounded">
+                            {cat.slug}
+                          </code>
+                        </td>
+                        <td className="p-4">
+                          <span className="text-sm text-[#8b7355] truncate max-w-[200px] block">
+                            {cat.description || '-'}
+                          </span>
+                        </td>
+                        <td className="p-4 text-right">
+                          <Badge className="bg-[#a67c52]/10 text-[#a67c52] border-0 text-xs">
+                            {cat._count?.products ?? 0} ürün
+                          </Badge>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-1 justify-end">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openEditCategory(cat)}
+                              className="h-8 w-8 text-[#8b7355] hover:text-[#a67c52]"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setCategoryDeleteTarget(cat)}
+                              className="h-8 w-8 text-[#8b7355] hover:text-red-600"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
 
             {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-[#f0ebe3]">
-              {categories.map((cat) => (
-                <div key={cat.id} className="p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-start gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-[#a67c52]/10 flex items-center justify-center shrink-0">
-                        <span className="text-sm font-bold text-[#a67c52]">
-                          {cat.groupNumber}
-                        </span>
+              {categories.map((cat) => {
+                const isChild = !!cat.parentId
+                return (
+                  <div key={cat.id} className={`p-4 ${isChild ? 'bg-[#faf8f5] pl-8' : ''}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isChild ? 'bg-[#f0ebe3]' : 'bg-[#a67c52]/10'}`}>
+                          <span className={`text-sm font-bold ${isChild ? 'text-[#c4b49a] text-base' : 'text-[#a67c52]'}`}>
+                            {isChild ? '↳' : cat.groupNumber}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className={`font-medium text-sm ${isChild ? 'text-[#8b7355]' : 'text-[#3d2c1e]'}`}>
+                            {cat.name}
+                          </p>
+                          {isChild && cat.parent && (
+                            <p className="text-[10px] text-[#c4b49a]">{cat.parent.name}</p>
+                          )}
+                          <p className="text-xs text-[#8b7355] mt-0.5">
+                            {cat.description || 'Açıklama yok'}
+                          </p>
+                          <Badge className="bg-[#a67c52]/10 text-[#a67c52] border-0 text-xs mt-1">
+                            {cat._count?.products ?? 0} ürün
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="font-medium text-[#3d2c1e] text-sm">
-                          {cat.name}
-                        </p>
-                        <p className="text-xs text-[#8b7355] mt-0.5">
-                          {cat.description || 'Açıklama yok'}
-                        </p>
+                      <div className="flex gap-1 shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditCategory(cat)}
+                          className="h-8 w-8 text-[#8b7355] hover:text-[#a67c52]"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setCategoryDeleteTarget(cat)}
+                          className="h-8 w-8 text-[#8b7355] hover:text-red-600"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                     </div>
-                    <Badge className="bg-[#a67c52]/10 text-[#a67c52] border-0 text-xs shrink-0">
-                      {cat._count?.products ?? 0}
-                    </Badge>
                   </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </>
         )}
@@ -1635,7 +1866,13 @@ export default function AdminPanel() {
                     <SelectValue placeholder="Kategori seçiniz" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
+                    {/* Show leaf categories (subcategories) first, then parent-only ones */}
+                    {categories.filter(c => c.parentId).map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        ↳ {cat.parent?.name ? `${cat.parent.name} › ` : ''}{cat.name}
+                      </SelectItem>
+                    ))}
+                    {categories.filter(c => !c.parentId).map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
                         {cat.groupNumber}. {cat.name}
                       </SelectItem>
@@ -1812,6 +2049,167 @@ export default function AdminPanel() {
             <AlertDialogAction
               onClick={handleProductDelete}
               className="bg-red-600 hover:bg-red-700 text-white border-0"
+            >
+              Evet, Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* ============================================================ */}
+      {/*  Category Form Dialog                                         */}
+      {/* ============================================================ */}
+      <Dialog open={categoryDialogOpen} onOpenChange={(open) => !open && closeCategoryDialog()}>
+        <DialogContent className="bg-white max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-[#3d2c1e]">
+              {editingCategory ? 'Kategori Düzenle' : 'Yeni Kategori Ekle'}
+            </DialogTitle>
+            <DialogDescription className="text-[#8b7355]">
+              {editingCategory
+                ? 'Kategori bilgilerini güncelleyin.'
+                : 'Yeni bir ürün kategorisi oluşturun.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="cat-parent" className="text-[#3d2c1e]">
+                Üst Kategori (Ana Kategori)
+              </Label>
+              <Select
+                value={categoryForm.parentId || 'none'}
+                onValueChange={(value) =>
+                  setCategoryForm((prev) => ({ ...prev, parentId: value === 'none' ? '' : value }))
+                }
+              >
+                <SelectTrigger className="border-[#e8e0d4] focus:ring-[#a67c52]/20">
+                  <SelectValue placeholder="Ana kategori (üst kategori yok)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">— Ana Kategori (Bağımsız) —</SelectItem>
+                  {categories
+                    .filter((c) => !c.parentId)
+                    .map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.groupNumber}. {cat.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-[#8b7355]">Bir üst kategori seçin (alt kategori) veya boş bırakın (ana kategori).</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cat-name" className="text-[#3d2c1e]">
+                Kategori Adı <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="cat-name"
+                value={categoryForm.name}
+                onChange={(e) => {
+                  const name = e.target.value
+                  setCategoryForm((prev) => ({
+                    ...prev,
+                    name,
+                    slug: prev.slug || slugify(name),
+                  }))
+                }}
+                placeholder="Örn: Nevresim Takımları"
+                className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cat-slug" className="text-[#3d2c1e]">
+                Slug (URL)
+              </Label>
+              <Input
+                id="cat-slug"
+                value={categoryForm.slug}
+                onChange={(e) =>
+                  setCategoryForm((prev) => ({ ...prev, slug: e.target.value }))
+                }
+                placeholder="nevresim-takimlari"
+                className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20 font-mono text-sm"
+              />
+              <p className="text-xs text-[#8b7355]">URL&apos;de görünecek kısım. Boş bırakılırsa otomatik oluşturulur.</p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="cat-desc" className="text-[#3d2c1e]">
+                Açıklama
+              </Label>
+              <Textarea
+                id="cat-desc"
+                value={categoryForm.description}
+                onChange={(e) =>
+                  setCategoryForm((prev) => ({ ...prev, description: e.target.value }))
+                }
+                placeholder="Kategori hakkında kısa bir açıklama..."
+                rows={3}
+                className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20 resize-none"
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={closeCategoryDialog}
+              className="border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3]"
+            >
+              İptal
+            </Button>
+            <Button
+              onClick={handleSaveCategory}
+              disabled={categorySaving}
+              className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white min-w-[120px]"
+            >
+              {categorySaving ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Kaydediliyor...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  {editingCategory ? 'Güncelle' : 'Kaydet'}
+                </span>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============================================================ */}
+      {/*  Category Delete Confirmation                                  */}
+      {/* ============================================================ */}
+      <AlertDialog
+        open={!!categoryDeleteTarget}
+        onOpenChange={(open) => !open && setCategoryDeleteTarget(null)}
+      >
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[#3d2c1e]">Kategoriyi Sil</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#8b7355]">
+              <strong className="text-[#3d2c1e]">{categoryDeleteTarget?.name}</strong> adlı
+              kategoriyi silmek istediğinizden emin misiniz?
+              {(categoryDeleteTarget?._count?.products ?? 0) > 0 && (
+                <span className="block mt-2 text-red-600 font-medium">
+                  Bu kategoride {categoryDeleteTarget?._count?.products} ürün var. Önce ürünleri silmelisiniz.
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3]">
+              İptal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteCategory}
+              disabled={(categoryDeleteTarget?._count?.products ?? 0) > 0}
+              className="bg-red-600 hover:bg-red-700 text-white border-0 disabled:opacity-50"
             >
               Evet, Sil
             </AlertDialogAction>

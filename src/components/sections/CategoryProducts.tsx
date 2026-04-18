@@ -1,13 +1,22 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ChevronRight, Home } from 'lucide-react'
+import { ChevronRight, Home, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { useStore } from '@/store/useStore'
 import Image from 'next/image'
+import { useSettings } from '@/hooks/useSettings'
+
+interface SubCategory {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  _count: { products: number }
+}
 
 interface Product {
   id: string
@@ -18,6 +27,7 @@ interface Product {
   category: {
     id: string
     name: string
+    slug: string
   }
 }
 
@@ -27,41 +37,70 @@ interface Category {
   name: string
   slug: string
   description: string | null
+  parentId: string | null
+  parent: { id: string; name: string; slug: string } | null
+  children: SubCategory[]
 }
 
-export default function CategoryProducts() {
-  const { selectedCategoryId, navigate } = useStore()
+interface Props {
+  categorySlug: string
+}
+
+// Subcategory card background images
+const subCategoryBgs = [
+  'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=600&q=80',
+  'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=600&q=80',
+  'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?w=600&q=80',
+  'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&q=80',
+  'https://images.unsplash.com/photo-1616627561839-074385245ff6?w=600&q=80',
+  'https://images.unsplash.com/photo-1615874959474-d609969a20ed?w=600&q=80',
+  'https://images.unsplash.com/photo-1595535873420-a599195b3f4a?w=600&q=80',
+]
+
+export default function CategoryProducts({ categorySlug }: Props) {
+  const router = useRouter()
+  const { whatsappNumber } = useSettings()
   const [products, setProducts] = useState<Product[]>([])
   const [category, setCategory] = useState<Category | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!selectedCategoryId) return
     let cancelled = false
 
-    Promise.all([
-      fetch('/api/categories').then((res) => res.json()),
-      fetch(`/api/products?categoryId=${selectedCategoryId}`).then((res) => res.json()),
-    ]).then(([categoriesData, productsData]) => {
-      if (cancelled) return
-      const cat = categoriesData.find((c: Category) => c.id === selectedCategoryId)
-      setCategory(cat || null)
-      setProducts(productsData)
-      setLoading(false)
-    }).catch(() => {
-      if (!cancelled) setLoading(false)
-    })
+    fetch(`/api/categories/${categorySlug}`)
+      .then((res) => res.json())
+      .then((cat: Category) => {
+        if (cancelled) return
+        setCategory(cat)
 
-    return () => { cancelled = true }
-  }, [selectedCategoryId])
+        // If this is a leaf category (no children), fetch its products
+        if (!cat.children || cat.children.length === 0) {
+          return fetch(`/api/products?categoryId=${cat.id}`).then((res) => res.json())
+        }
+        // Parent category: no direct products to fetch
+        return []
+      })
+      .then((productsData) => {
+        if (cancelled || !productsData) return
+        setProducts(Array.isArray(productsData) ? productsData : [])
+        setLoading(false)
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [categorySlug])
 
   const openWhatsApp = (product: Product) => {
-    const message = `Merhaba, şu ürün için fiyat almak istiyorum: ${product.name} ${window.location.href}`
-    const url = `https://wa.me/905332423665?text=${encodeURIComponent(message)}`
-    window.open(url, '_blank')
+    const waClean = whatsappNumber.replace(/[^0-9]/g, '')
+    const message = `Merhaba, şu ürün için fiyat almak istiyorum: ${product.name} — ${window.location.href}`
+    window.open(`https://wa.me/${waClean}?text=${encodeURIComponent(message)}`, '_blank')
   }
 
-  if (!selectedCategoryId) return null
+  const isParentCategory = category && category.children && category.children.length > 0
 
   return (
     <div className="min-h-screen">
@@ -70,16 +109,29 @@ export default function CategoryProducts() {
         <motion.nav
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 text-sm text-[#8b7355] mb-6"
+          className="flex items-center gap-2 text-sm text-[#8b7355] mb-6 flex-wrap"
         >
           <button
-            onClick={() => navigate('home')}
+            onClick={() => router.push('/')}
             className="flex items-center gap-1 hover:text-[#a67c52] transition-colors"
           >
             <Home className="h-4 w-4" />
             Ana Sayfa
           </button>
-          <ChevronRight className="h-4 w-4" />
+
+          {category?.parent && (
+            <>
+              <ChevronRight className="h-4 w-4 shrink-0" />
+              <button
+                onClick={() => router.push(`/urunler/${category.parent!.slug}`)}
+                className="hover:text-[#a67c52] transition-colors"
+              >
+                {category.parent.name}
+              </button>
+            </>
+          )}
+
+          <ChevronRight className="h-4 w-4 shrink-0" />
           <span className="text-[#3d2c1e] font-medium">{category?.name || 'Kategori'}</span>
         </motion.nav>
 
@@ -90,34 +142,86 @@ export default function CategoryProducts() {
           transition={{ delay: 0.1 }}
           className="mb-8"
         >
-          <div className="flex items-center gap-3 mb-3">
-            {category && (
-              <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#a67c52] text-white font-bold text-lg shrink-0">
-                {category.groupNumber}
-              </div>
-            )}
-            <h1 className="text-3xl md:text-4xl font-bold text-[#3d2c1e]">
-              {category?.name}
-            </h1>
-          </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-[#3d2c1e] mb-2">
+            {category?.name}
+          </h1>
           {category?.description && (
-            <p className="text-[#8b7355] max-w-2xl ml-[52px]">
-              {category.description}
+            <p className="text-[#8b7355] max-w-2xl">{category.description}</p>
+          )}
+          {!loading && (
+            <p className="text-sm text-[#8b7355] mt-2">
+              {isParentCategory
+                ? `${category.children.length} alt kategori`
+                : `${products.length} ürün bulundu`}
             </p>
           )}
-          <p className="text-sm text-[#8b7355] ml-[52px] mt-2">
-            {products.length} ürün bulundu
-          </p>
         </motion.div>
 
-        {/* Products Grid */}
-        {loading ? (
+        {/* Loading State */}
+        {loading && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-96 rounded-xl bg-[#f0ebe3] animate-pulse" />
+              <div key={i} className="h-56 rounded-xl bg-[#f0ebe3] animate-pulse" />
             ))}
           </div>
-        ) : products.length === 0 ? (
+        )}
+
+        {/* Parent Category: Show Subcategory Cards */}
+        {!loading && isParentCategory && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {category.children.map((child, index) => (
+              <motion.div
+                key={child.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.07, duration: 0.4 }}
+                className="group"
+              >
+                <div
+                  onClick={() => router.push(`/urunler/${child.slug}`)}
+                  className="relative h-52 rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-lg transition-all duration-400 border border-[#e8e0d4]"
+                >
+                  {/* Background */}
+                  <div className="absolute inset-0">
+                    <Image
+                      src={subCategoryBgs[index % subCategoryBgs.length]}
+                      alt={child.name}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  </div>
+                  {/* Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/35 to-black/10" />
+
+                  {/* Product count */}
+                  <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-2.5 py-1 rounded-full text-xs font-semibold text-[#3d2c1e]">
+                    {child._count.products} ürün
+                  </div>
+
+                  {/* Content */}
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <h3 className="font-bold text-white text-base mb-1 group-hover:text-[#d4a96a] transition-colors line-clamp-2">
+                      {child.name}
+                    </h3>
+                    {child.description && (
+                      <p className="text-white/65 text-xs line-clamp-1 mb-2">
+                        {child.description}
+                      </p>
+                    )}
+                    <div className="flex items-center text-white/80 group-hover:text-[#d4a96a] transition-colors text-sm font-medium">
+                      <span>İncele</span>
+                      <ArrowRight className="h-3.5 w-3.5 ml-1.5 group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
+        {/* Leaf Category: Show Products */}
+        {!loading && !isParentCategory && products.length === 0 && (
           <div className="text-center py-16">
             <div className="w-20 h-20 mx-auto rounded-full bg-[#f0ebe3] flex items-center justify-center mb-4">
               <svg className="h-10 w-10 text-[#8b7355]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -125,11 +229,13 @@ export default function CategoryProducts() {
               </svg>
             </div>
             <p className="text-[#8b7355] text-lg mb-4">Bu kategoride henüz ürün bulunmuyor.</p>
-            <Button onClick={() => navigate('home')} className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white">
+            <Button onClick={() => router.push('/')} className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white">
               Ana Sayfaya Dön
             </Button>
           </div>
-        ) : (
+        )}
+
+        {!loading && !isParentCategory && products.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {products.map((product, index) => (
               <motion.div
@@ -140,7 +246,7 @@ export default function CategoryProducts() {
               >
                 <Card
                   className="overflow-hidden border-[#e8e0d4] hover:shadow-lg transition-all cursor-pointer group h-full flex flex-col"
-                  onClick={() => navigate('product', product.category.id, product.id)}
+                  onClick={() => router.push(`/urunler/${categorySlug}/${product.id}`)}
                 >
                   {/* Product Image */}
                   <div className="relative w-full h-64 bg-[#f0ebe3] overflow-hidden">
@@ -166,7 +272,9 @@ export default function CategoryProducts() {
                     )}
                     {product.featured && (
                       <Badge className="absolute top-3 left-3 bg-[#a67c52] text-white">
-                        <svg className="h-3 w-3 mr-1 fill-white" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                        <svg className="h-3 w-3 mr-1 fill-white" viewBox="0 0 24 24">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                        </svg>
                         Öne Çıkan
                       </Badge>
                     )}
