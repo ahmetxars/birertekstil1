@@ -1,32 +1,40 @@
 'use client'
 
 import { useState } from 'react'
-import { Menu, X, Home, Grid3X3, Phone, Settings } from 'lucide-react'
+import { useRouter, usePathname } from 'next/navigation'
+import { Menu, X, Home, Grid3X3, Phone, Star, Info } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from '@/components/ui/sheet'
-import { useStore } from '@/store/useStore'
+import Image from 'next/image'
+
+const navItems = [
+  { label: 'Ana Sayfa', icon: Home, href: '/' },
+  { label: 'Öne Çıkan', icon: Star, href: '/', scroll: 'featured', highlight: true },
+  { label: 'Ürünler', icon: Grid3X3, href: '/', scroll: 'categories' },
+  { label: 'Hakkımızda', icon: Info, href: '/', scroll: 'hakkimizda' },
+  { label: 'İletişim', icon: Phone, href: '/', scroll: 'contact' },
+]
 
 export default function Header() {
   const [open, setOpen] = useState(false)
-  const { page, navigate } = useStore()
-
-  const navItems = [
-    { label: 'Ana Sayfa', icon: Home, page: 'home' as const },
-    { label: 'Kategoriler', icon: Grid3X3, page: 'home' as const, scroll: 'categories' },
-    { label: 'İletişim', icon: Phone, page: 'home' as const, scroll: 'contact' },
-    { label: 'Yönetim Paneli', icon: Settings, page: 'admin' as const },
-  ]
+  const router = useRouter()
+  const pathname = usePathname()
 
   const handleNav = (item: (typeof navItems)[0]) => {
     setOpen(false)
     if (item.scroll) {
-      navigate('home')
-      setTimeout(() => {
-        const el = document.getElementById(item.scroll!)
+      if (pathname === '/') {
+        const el = document.getElementById(item.scroll)
         if (el) el.scrollIntoView({ behavior: 'smooth' })
-      }, 100)
+      } else {
+        router.push('/')
+        setTimeout(() => {
+          const el = document.getElementById(item.scroll!)
+          if (el) el.scrollIntoView({ behavior: 'smooth' })
+        }, 300)
+      }
     } else {
-      navigate(item.page)
+      router.push(item.href)
     }
   }
 
@@ -36,28 +44,44 @@ export default function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <button
-            onClick={() => navigate('home')}
-            className="flex flex-col items-start hover:opacity-80 transition-opacity"
+            onClick={() => router.push('/')}
+            className="hover:opacity-80 transition-opacity"
           >
-            <span className="text-xl font-bold text-[#a67c52] tracking-wide">Birer Tekstil</span>
-            <span className="text-xs text-[#8b7355] -mt-1 tracking-widest">İSTANBUL</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/birerteks-logo.png"
+              alt="Birer Tekstil"
+              className="h-14 w-auto object-contain"
+              style={{ mixBlendMode: 'multiply' }}
+            />
           </button>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-1">
-            {navItems.map((item) => (
-              <Button
-                key={item.label}
-                variant="ghost"
-                size="sm"
-                onClick={() => handleNav(item)}
-                className={`text-[#3d2c1e] hover:text-[#a67c52] hover:bg-[#f0ebe3] ${
-                  page === item.page && !item.scroll ? 'text-[#a67c52] font-semibold' : ''
-                }`}
-              >
-                {item.label}
-              </Button>
-            ))}
+            {navItems.map((item) =>
+              item.highlight ? (
+                <button
+                  key={item.label}
+                  onClick={() => handleNav(item)}
+                  className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-semibold bg-[#a67c52] text-white hover:bg-[#a67c52]/90 transition-colors shadow-sm mx-1"
+                >
+                  <item.icon className="h-3.5 w-3.5" />
+                  {item.label}
+                </button>
+              ) : (
+                <Button
+                  key={item.label}
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleNav(item)}
+                  className={`text-[#3d2c1e] hover:text-[#a67c52] hover:bg-[#f0ebe3] ${
+                    pathname === item.href && !item.scroll ? 'text-[#a67c52] font-semibold' : ''
+                  }`}
+                >
+                  {item.label}
+                </Button>
+              )
+            )}
           </nav>
 
           {/* Mobile Menu */}
@@ -71,10 +95,13 @@ export default function Header() {
               <SheetTitle className="sr-only">Menü</SheetTitle>
               <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between p-4 border-b border-[#e8e0d4]">
-                  <div>
-                    <span className="text-lg font-bold text-[#a67c52]">Birer Tekstil</span>
-                    <span className="block text-xs text-[#8b7355]">İSTANBUL</span>
-                  </div>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/birerteks-logo.png"
+                    alt="Birer Tekstil"
+                    className="h-12 w-auto object-contain"
+                    style={{ mixBlendMode: 'multiply' }}
+                  />
                   <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
                     <X className="h-5 w-5" />
                   </Button>
@@ -84,10 +111,21 @@ export default function Header() {
                     <button
                       key={item.label}
                       onClick={() => handleNav(item)}
-                      className="flex items-center gap-3 w-full px-4 py-3 text-left text-[#3d2c1e] hover:bg-[#f0ebe3] transition-colors"
+                      className={`flex items-center gap-3 w-full px-4 py-3 text-left transition-colors ${
+                        item.highlight
+                          ? 'text-[#a67c52] bg-[#a67c52]/5 font-semibold'
+                          : 'text-[#3d2c1e] hover:bg-[#f0ebe3]'
+                      }`}
                     >
-                      <item.icon className="h-5 w-5 text-[#a67c52]" />
+                      <item.icon
+                        className={`h-5 w-5 ${item.highlight ? 'text-[#a67c52]' : 'text-[#a67c52]'}`}
+                      />
                       <span className="text-sm font-medium">{item.label}</span>
+                      {item.highlight && (
+                        <span className="ml-auto text-xs bg-[#a67c52] text-white px-2 py-0.5 rounded-full">
+                          Yeni
+                        </span>
+                      )}
                     </button>
                   ))}
                 </nav>
