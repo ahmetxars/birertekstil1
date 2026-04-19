@@ -1,4 +1,7 @@
 import type { Metadata } from 'next'
+
+export const dynamic = 'force-dynamic'
+
 import { notFound } from 'next/navigation'
 import { db } from '@/lib/db'
 import Header from '@/components/layout/Header'
