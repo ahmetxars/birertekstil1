@@ -38,7 +38,7 @@ export default function Footer() {
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center shrink-0">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/birerteks-logo.png" alt="Birer Tekstil" className="h-8 w-8 object-contain" style={{ mixBlendMode: 'multiply' }} />
+                <img src="/birerteks-logo.png" alt="Birer Tekstil" className="h-8 w-8 object-contain"  />
               </div>
               <div>
                 <h3 className="text-base font-bold text-white leading-tight">Birer Tekstil</h3>

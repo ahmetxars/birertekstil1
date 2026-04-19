@@ -65,7 +65,7 @@ export default function Header() {
               src="/birerteks-logo.png"
               alt="Birer Tekstil"
               className="h-14 w-auto object-contain"
-              style={{ mixBlendMode: 'multiply' }}
+              
             />
           </button>
 
@@ -162,7 +162,7 @@ export default function Header() {
                       src="/birerteks-logo.png"
                       alt="Birer Tekstil"
                       className="h-12 w-auto object-contain"
-                      style={{ mixBlendMode: 'multiply' }}
+                      
                     />
                     <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
                       <X className="h-5 w-5" />

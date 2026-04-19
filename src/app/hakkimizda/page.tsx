@@ -135,7 +135,7 @@ export default async function HakkimizdaPage() {
                     src="/birerteks-logo.png"
                     alt="Birer Tekstil"
                     className="h-48 w-48 object-contain"
-                    style={{ mixBlendMode: 'multiply' }}
+                    
                   />
                 </div>
               </div>
