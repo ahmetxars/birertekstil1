@@ -3,12 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
-  // Production'da PostgreSQL için:
-  // 1. provider = "postgresql" yapın
-  // 2. DATABASE_URL = "postgresql://..." olarak ayarlayın
-  // 3. npx prisma migrate deploy çalıştırın
 }
 
 model Category {
