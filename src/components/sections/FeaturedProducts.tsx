@@ -51,7 +51,7 @@ export default function FeaturedProducts() {
   }
 
   return (
-    <section id="featured" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+    <section id="featured" className="py-16 px-4 sm:px-6 lg:px-8" style={{ background: 'linear-gradient(135deg, #3d2c1e 0%, #5c3d2e 100%)' }}>
       <div className="max-w-6xl mx-auto">
         {/* Section Title */}
         <motion.div
@@ -62,11 +62,14 @@ export default function FeaturedProducts() {
           className="flex items-center justify-between mb-8"
         >
           <div>
-            <h2 className="text-3xl md:text-4xl font-bold text-[#3d2c1e] mb-2">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[#a67c52] text-xs font-semibold tracking-widest uppercase">Seçkimiz</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">
               Öne Çıkan Ürünler
             </h2>
-            <p className="text-[#8b7355]">
-              En popüler ürünlerimizi inceleyin
+            <p className="text-white/60">
+              En çok tercih edilen ürünlerimizi inceleyin
             </p>
           </div>
           <div className="hidden sm:flex gap-2">
@@ -74,7 +77,7 @@ export default function FeaturedProducts() {
               variant="outline"
               size="icon"
               onClick={() => scroll('left')}
-              className="border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3]"
+              className="border-white/20 text-white hover:bg-white/10 bg-transparent"
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -82,7 +85,7 @@ export default function FeaturedProducts() {
               variant="outline"
               size="icon"
               onClick={() => scroll('right')}
-              className="border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3]"
+              className="border-white/20 text-white hover:bg-white/10 bg-transparent"
             >
               <ChevronRight className="h-4 w-4" />
             </Button>

@@ -6,15 +6,17 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const categoryId = searchParams.get('categoryId')
     const featured = searchParams.get('featured')
+    const search = searchParams.get('search')?.trim()
 
     const where: Record<string, unknown> = {}
 
-    if (categoryId) {
-      where.categoryId = categoryId
-    }
-
-    if (featured === 'true') {
-      where.featured = true
+    if (categoryId) where.categoryId = categoryId
+    if (featured === 'true') where.featured = true
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { description: { contains: search } },
+      ]
     }
 
     const products = await db.product.findMany({
@@ -35,7 +37,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { name, description, image, categoryId, featured, order } = body
+    const { name, description, image, images, categoryId, featured, order } = body
 
     if (!name || !categoryId) {
       return NextResponse.json({ error: 'Ad ve kategori alanları zorunludur' }, { status: 400 })
@@ -45,7 +47,8 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description: description || null,
-        image,
+        image: image || '',
+        images: typeof images === 'string' ? images : JSON.stringify(images ?? []),
         categoryId,
         featured: featured || false,
         order: order || 0,

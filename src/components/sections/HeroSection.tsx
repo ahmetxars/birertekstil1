@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
+import { useSettings } from '@/hooks/useSettings'
 
 const typingText = "Akfil, Pamuk Saten, Keten, Pike ve daha fazlası... 20 yılı aşkın tecrübemizle size en kaliteli ürünleri sunuyoruz."
 
@@ -67,6 +68,9 @@ function useTypingEffect(text: string, speed: number = 40, startDelay: number = 
 }
 
 export default function HeroSection() {
+  const { whatsappNumber } = useSettings()
+  const waClean = whatsappNumber.replace(/[^0-9]/g, '')
+
   const scrollToCategories = () => {
     const el = document.getElementById('categories')
     if (el) el.scrollIntoView({ behavior: 'smooth' })
@@ -131,7 +135,7 @@ export default function HeroSection() {
           className="flex flex-col sm:flex-row gap-4"
         >
           <a
-            href="https://wa.me/905332423665?text=Merhaba"
+            href={`https://wa.me/${waClean}?text=Merhaba`}
             target="_blank"
             rel="noopener noreferrer"
           >

@@ -1,76 +1,144 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ArrowLeft, ChevronRight, Home, Star } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Home, Star, Eye, Share2, Check, Heart } from 'lucide-react'
+import { useFavorites } from '@/hooks/useFavorites'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { useStore } from '@/store/useStore'
 import Image from 'next/image'
+import { useSettings } from '@/hooks/useSettings'
 
 interface Product {
   id: string
   name: string
   description: string | null
   image: string
+  images: string   // JSON string: ["url1","url2",...]
   featured: boolean
+  viewCount: number
   category: {
     id: string
     name: string
+    slug: string
   }
 }
 
-export default function ProductDetail() {
-  const { selectedProductId, selectedCategoryId, navigate } = useStore()
+interface Props {
+  productId: string
+  categorySlug: string
+}
+
+export default function ProductDetail({ productId, categorySlug }: Props) {
+  const router = useRouter()
+  const settings = useSettings()
+  const { isFavorite, toggle: toggleFavorite } = useFavorites()
   const [product, setProduct] = useState<Product | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeImg, setActiveImg] = useState(0)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
-    if (!selectedProductId) return
     let cancelled = false
 
-    fetch(`/api/products/${selectedProductId}`)
+    fetch(`/api/products/${productId}`)
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: Product) => {
         if (cancelled) return
         setProduct(data)
         setLoading(false)
+        // Track view (fire-and-forget)
+        fetch(`/api/products/${productId}/view`, { method: 'POST' }).catch(() => {})
+        // Fetch related products
+        return fetch(`/api/products?categoryId=${data.category.id}`).then((res) => res.json())
+      })
+      .then((related) => {
+        if (cancelled || !related) return
+        setRelatedProducts((related as Product[]).filter((p) => p.id !== productId).slice(0, 4))
       })
       .catch(() => {
         if (!cancelled) setLoading(false)
       })
 
-    if (selectedCategoryId) {
-      fetch(`/api/products?categoryId=${selectedCategoryId}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (cancelled) return
-          setRelatedProducts(data.filter((p: Product) => p.id !== selectedProductId).slice(0, 4))
-        })
-        .catch(() => {})
+    return () => {
+      cancelled = true
     }
+  }, [productId])
 
-    return () => { cancelled = true }
-  }, [selectedProductId, selectedCategoryId])
+  // Tüm görselleri birleştir: images JSON + image fallback
+  const allImages = (() => {
+    if (!product) return []
+    let extras: string[] = []
+    try { extras = JSON.parse(product.images ?? '[]') } catch { extras = [] }
+    const combined = [...(product.image ? [product.image] : []), ...extras.filter(u => u && u !== product.image)]
+    return combined.length > 0 ? combined : []
+  })()
 
   const openWhatsApp = () => {
     if (!product) return
-    const message = `Merhaba, şu ürün için fiyat almak istiyorum: ${product.name} ${window.location.href}`
-    const url = `https://wa.me/905332423665?text=${encodeURIComponent(message)}`
-    window.open(url, '_blank')
+    const message = `Merhaba, şu ürün için fiyat almak istiyorum: ${product.name} — ${window.location.href}`
+    const waNumber = settings.whatsappNumber.replace(/[^0-9]/g, '')
+    window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(message)}`, '_blank')
   }
 
-  if (!selectedProductId) return null
+  const handleShare = async () => {
+    if (!product) return
+    const url = window.location.href
+    const title = product.name
+    const text = `${product.name} — Birer Tekstil`
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title, text, url })
+        return
+      } catch {
+        // user cancelled or share failed, fall through to clipboard
+      }
+    }
+
+    // Clipboard fallback
+    try {
+      await navigator.clipboard.writeText(url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // silently fail
+    }
+  }
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse text-center">
-          <div className="w-16 h-16 mx-auto rounded-full bg-[#f0ebe3] mb-4" />
-          <p className="text-[#8b7355]">Yükleniyor...</p>
+      <div className="min-h-screen">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Breadcrumb skeleton */}
+          <div className="flex items-center gap-2 mb-6">
+            {[80, 60, 120].map((w, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <div className={`h-4 w-${w === 80 ? '20' : w === 60 ? '16' : '32'} bg-[#f0ebe3] rounded animate-pulse`} />
+                {i < 2 && <div className="h-4 w-3 bg-[#f0ebe3] rounded animate-pulse" />}
+              </div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+            {/* Image skeleton */}
+            <div className="aspect-square max-h-[500px] bg-[#f0ebe3] rounded-2xl animate-pulse" />
+            {/* Info skeleton */}
+            <div className="space-y-4 pt-4">
+              <div className="h-6 w-24 bg-[#f0ebe3] rounded-full animate-pulse" />
+              <div className="h-10 w-3/4 bg-[#f0ebe3] rounded animate-pulse" />
+              <div className="h-px w-full bg-[#f0ebe3]" />
+              <div className="space-y-2">
+                <div className="h-4 w-full bg-[#f0ebe3] rounded animate-pulse" />
+                <div className="h-4 w-5/6 bg-[#f0ebe3] rounded animate-pulse" />
+                <div className="h-4 w-4/6 bg-[#f0ebe3] rounded animate-pulse" />
+              </div>
+              <div className="h-14 w-full bg-[#f0ebe3] rounded-xl animate-pulse mt-8" />
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -81,7 +149,10 @@ export default function ProductDetail() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-[#8b7355] text-lg mb-4">Ürün bulunamadı</p>
-          <Button onClick={() => navigate('category', selectedCategoryId!)} className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white">
+          <Button
+            onClick={() => router.push(`/urunler/${categorySlug}`)}
+            className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white"
+          >
             Kategoriye Dön
           </Button>
         </div>
@@ -99,7 +170,7 @@ export default function ProductDetail() {
           className="flex items-center gap-2 text-sm text-[#8b7355] mb-6 flex-wrap"
         >
           <button
-            onClick={() => navigate('home')}
+            onClick={() => router.push('/')}
             className="flex items-center gap-1 hover:text-[#a67c52] transition-colors"
           >
             <Home className="h-4 w-4" />
@@ -107,7 +178,7 @@ export default function ProductDetail() {
           </button>
           <ChevronRight className="h-4 w-4" />
           <button
-            onClick={() => navigate('category', product.category.id)}
+            onClick={() => router.push(`/urunler/${categorySlug}`)}
             className="hover:text-[#a67c52] transition-colors"
           >
             {product.category.name}
@@ -119,7 +190,7 @@ export default function ProductDetail() {
         {/* Back Button */}
         <Button
           variant="ghost"
-          onClick={() => navigate('category', product.category.id)}
+          onClick={() => router.push(`/urunler/${categorySlug}`)}
           className="text-[#8b7355] hover:text-[#a67c52] mb-6 -ml-2"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
@@ -127,19 +198,21 @@ export default function ProductDetail() {
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-          {/* Product Image */}
+          {/* Product Image Gallery */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
+            className="flex flex-col gap-3"
           >
+            {/* Ana görsel */}
             <div className="relative w-full aspect-square max-h-[500px] bg-[#f0ebe3] rounded-2xl overflow-hidden border border-[#e8e0d4]">
-              {product.image ? (
+              {allImages.length > 0 ? (
                 <Image
-                  src={product.image}
-                  alt={product.name}
+                  src={allImages[activeImg]}
+                  alt={`${product.name} - görsel ${activeImg + 1}`}
                   fill
-                  className="object-cover"
+                  className="object-cover transition-opacity duration-300"
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   priority
                 />
@@ -155,7 +228,30 @@ export default function ProductDetail() {
                   </div>
                 </div>
               )}
+              {/* Görsel sayacı */}
+              {allImages.length > 1 && (
+                <div className="absolute bottom-3 right-3 bg-black/50 text-white text-xs px-2 py-1 rounded-full">
+                  {activeImg + 1} / {allImages.length}
+                </div>
+              )}
             </div>
+
+            {/* Thumbnail şeridi */}
+            {allImages.length > 1 && (
+              <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
+                {allImages.map((url, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActiveImg(i)}
+                    className={`relative shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
+                      i === activeImg ? 'border-[#a67c52] opacity-100' : 'border-[#e8e0d4] opacity-60 hover:opacity-100'
+                    }`}
+                  >
+                    <Image src={url} alt={`Görsel ${i + 1}`} fill className="object-cover" sizes="64px" />
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
 
           {/* Product Info */}
@@ -175,13 +271,33 @@ export default function ProductDetail() {
               {product.name}
             </h1>
 
-            {/* Featured */}
-            {product.featured && (
-              <div className="flex items-center gap-1.5 mb-4">
-                <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
-                <span className="text-sm text-amber-600 font-medium">Öne Çıkan Ürün</span>
-              </div>
-            )}
+            {/* Featured + view count + favorite */}
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              {product.featured && (
+                <div className="flex items-center gap-1.5">
+                  <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                  <span className="text-sm text-amber-600 font-medium">Öne Çıkan Ürün</span>
+                </div>
+              )}
+              {product.viewCount > 0 && (
+                <div className="flex items-center gap-1.5 text-[#8b7355]">
+                  <Eye className="h-4 w-4" />
+                  <span className="text-sm">{product.viewCount.toLocaleString('tr-TR')} görüntülenme</span>
+                </div>
+              )}
+              <button
+                onClick={() => toggleFavorite(product.id)}
+                className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${
+                  isFavorite(product.id)
+                    ? 'bg-rose-50 border-rose-300 text-rose-600'
+                    : 'border-[#e8e0d4] text-[#8b7355] hover:border-rose-300 hover:text-rose-500'
+                }`}
+                aria-label={isFavorite(product.id) ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+              >
+                <Heart className={`h-4 w-4 ${isFavorite(product.id) ? 'fill-rose-500 text-rose-500' : ''}`} />
+                {isFavorite(product.id) ? 'Favori' : 'Favorile'}
+              </button>
+            </div>
 
             <Separator className="my-4 bg-[#e8e0d4]" />
 
@@ -191,14 +307,12 @@ export default function ProductDetail() {
                 <h3 className="text-sm font-semibold text-[#3d2c1e] uppercase tracking-wider mb-3">
                   Ürün Açıklaması
                 </h3>
-                <p className="text-[#8b7355] leading-relaxed">
-                  {product.description}
-                </p>
+                <p className="text-[#8b7355] leading-relaxed">{product.description}</p>
               </div>
             )}
 
-            {/* WhatsApp Button */}
-            <div className="mt-auto">
+            {/* WhatsApp + Share Buttons */}
+            <div className="mt-auto space-y-3">
               <Button
                 size="lg"
                 onClick={openWhatsApp}
@@ -210,7 +324,27 @@ export default function ProductDetail() {
                 </svg>
                 WhatsApp ile Fiyat Sor
               </Button>
-              <p className="text-xs text-center text-[#8b7355] mt-2">
+
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={handleShare}
+                className="w-full border-[#e8e0d4] text-[#8b7355] hover:border-[#a67c52] hover:text-[#a67c52] hover:bg-[#a67c52]/5 py-5"
+              >
+                {copied ? (
+                  <>
+                    <Check className="h-4 w-4 mr-2 text-green-600" />
+                    <span className="text-green-600">Bağlantı Kopyalandı!</span>
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Ürünü Paylaş
+                  </>
+                )}
+              </Button>
+
+              <p className="text-xs text-center text-[#8b7355]">
                 Fiyat bilgisi için WhatsApp üzerinden bize yazabilirsiniz
               </p>
             </div>
@@ -226,7 +360,7 @@ export default function ProductDetail() {
                 <Card
                   key={rp.id}
                   className="overflow-hidden border-[#e8e0d4] hover:shadow-md transition-all cursor-pointer group"
-                  onClick={() => navigate('product', rp.category.id, rp.id)}
+                  onClick={() => router.push(`/urunler/${rp.category.slug}/${rp.id}`)}
                 >
                   <div className="relative w-full h-32 bg-[#f0ebe3] overflow-hidden">
                     {rp.image ? (

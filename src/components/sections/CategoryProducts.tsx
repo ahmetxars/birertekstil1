@@ -1,14 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { ChevronRight, Home, ArrowRight } from 'lucide-react'
+import { ChevronRight, Home, ArrowRight, SlidersHorizontal, Heart } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Image from 'next/image'
 import { useSettings } from '@/hooks/useSettings'
+import { useFavorites } from '@/hooks/useFavorites'
 
 interface SubCategory {
   id: string
@@ -24,6 +25,8 @@ interface Product {
   description: string | null
   image: string
   featured: boolean
+  viewCount: number
+  createdAt: string
   category: {
     id: string
     name: string
@@ -60,9 +63,17 @@ const subCategoryBgs = [
 export default function CategoryProducts({ categorySlug }: Props) {
   const router = useRouter()
   const { whatsappNumber } = useSettings()
+  const { isFavorite, toggle: toggleFavorite } = useFavorites()
   const [products, setProducts] = useState<Product[]>([])
   const [category, setCategory] = useState<Category | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sort, setSort] = useState<'default' | 'az' | 'za' | 'featured'>('default')
+
+  const isNew = (createdAt: string) => {
+    const diffMs = Date.now() - new Date(createdAt).getTime()
+    return diffMs < 30 * 24 * 60 * 60 * 1000 // 30 gün
+  }
+  const isPopular = (viewCount: number) => viewCount >= 50
 
   useEffect(() => {
     let cancelled = false
@@ -93,6 +104,14 @@ export default function CategoryProducts({ categorySlug }: Props) {
       cancelled = true
     }
   }, [categorySlug])
+
+  const sortedProducts = useMemo(() => {
+    const arr = [...products]
+    if (sort === 'az') return arr.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+    if (sort === 'za') return arr.sort((a, b) => b.name.localeCompare(a.name, 'tr'))
+    if (sort === 'featured') return arr.sort((a, b) => (b.featured ? 1 : 0) - (a.featured ? 1 : 0))
+    return arr // default: server order
+  }, [products, sort])
 
   const openWhatsApp = (product: Product) => {
     const waClean = whatsappNumber.replace(/[^0-9]/g, '')
@@ -149,11 +168,39 @@ export default function CategoryProducts({ categorySlug }: Props) {
             <p className="text-[#8b7355] max-w-2xl">{category.description}</p>
           )}
           {!loading && (
-            <p className="text-sm text-[#8b7355] mt-2">
-              {isParentCategory
-                ? `${category.children.length} alt kategori`
-                : `${products.length} ürün bulundu`}
-            </p>
+            <div className="flex items-center justify-between mt-2 flex-wrap gap-3">
+              <p className="text-sm text-[#8b7355]">
+                {isParentCategory
+                  ? `${category.children.length} alt kategori`
+                  : `${products.length} ürün bulundu`}
+              </p>
+              {/* Sort filter — only for leaf categories with products */}
+              {!isParentCategory && products.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <SlidersHorizontal className="h-4 w-4 text-[#8b7355] shrink-0" />
+                  <div className="flex gap-1 flex-wrap">
+                    {([
+                      { value: 'default', label: 'Varsayılan' },
+                      { value: 'featured', label: 'Öne Çıkanlar' },
+                      { value: 'az', label: 'A → Z' },
+                      { value: 'za', label: 'Z → A' },
+                    ] as const).map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setSort(opt.value)}
+                        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
+                          sort === opt.value
+                            ? 'bg-[#a67c52] text-white border-[#a67c52]'
+                            : 'bg-white text-[#8b7355] border-[#e8e0d4] hover:border-[#a67c52] hover:text-[#a67c52]'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </motion.div>
 
@@ -237,7 +284,7 @@ export default function CategoryProducts({ categorySlug }: Props) {
 
         {!loading && !isParentCategory && products.length > 0 && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product, index) => (
+            {sortedProducts.map((product, index) => (
               <motion.div
                 key={product.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -270,14 +317,40 @@ export default function CategoryProducts({ categorySlug }: Props) {
                         </div>
                       </div>
                     )}
-                    {product.featured && (
-                      <Badge className="absolute top-3 left-3 bg-[#a67c52] text-white">
-                        <svg className="h-3 w-3 mr-1 fill-white" viewBox="0 0 24 24">
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-                        </svg>
-                        Öne Çıkan
-                      </Badge>
-                    )}
+                    {/* Badges */}
+                    <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+                      {product.featured && (
+                        <Badge className="bg-[#a67c52] text-white text-[10px] px-2 py-0.5">
+                          <svg className="h-2.5 w-2.5 mr-1 fill-white" viewBox="0 0 24 24">
+                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                          </svg>
+                          Öne Çıkan
+                        </Badge>
+                      )}
+                      {isNew(product.createdAt) && (
+                        <Badge className="bg-emerald-500 text-white text-[10px] px-2 py-0.5">
+                          Yeni
+                        </Badge>
+                      )}
+                      {isPopular(product.viewCount) && (
+                        <Badge className="bg-rose-500 text-white text-[10px] px-2 py-0.5">
+                          🔥 Popüler
+                        </Badge>
+                      )}
+                    </div>
+
+                    {/* Favorite button */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleFavorite(product.id) }}
+                      className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center shadow-sm backdrop-blur-sm transition-all ${
+                        isFavorite(product.id)
+                          ? 'bg-rose-500 text-white'
+                          : 'bg-white/90 text-[#8b7355] hover:text-rose-500'
+                      }`}
+                      aria-label={isFavorite(product.id) ? 'Favorilerden çıkar' : 'Favorilere ekle'}
+                    >
+                      <Heart className={`h-4 w-4 ${isFavorite(product.id) ? 'fill-white' : ''}`} />
+                    </button>
                   </div>
 
                   <CardContent className="p-4 flex flex-col gap-3 flex-1">

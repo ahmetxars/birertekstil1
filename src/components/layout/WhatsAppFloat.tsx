@@ -1,8 +1,12 @@
 'use client'
 
+import { useSettings } from '@/hooks/useSettings'
+
 export default function WhatsAppFloat() {
+  const { whatsappNumber } = useSettings()
+  const clean = whatsappNumber.replace(/[^0-9]/g, '')
   const message = 'Merhaba, bilgi almak istiyorum.'
-  const url = `https://wa.me/905332423665?text=${encodeURIComponent(message)}`
+  const url = `https://wa.me/${clean}?text=${encodeURIComponent(message)}`
 
   return (
     <a

@@ -21,6 +21,10 @@ import {
   Phone,
   MapPin,
   Mail,
+  LogOut,
+  MessageSquare,
+  CheckCheck,
+  Clock,
   RefreshCw,
   Save,
   ExternalLink,
@@ -28,6 +32,7 @@ import {
   Menu,
   Sparkles,
   TrendingUp,
+  Eye,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -98,6 +103,7 @@ interface Product {
   categoryId: string
   featured: boolean
   order: number
+  viewCount: number
   category: { id: string; groupNumber: number; name: string; slug: string }
 }
 
@@ -105,6 +111,7 @@ interface ProductFormData {
   name: string
   description: string
   image: string
+  images: string[]   // ek görseller
   categoryId: string
   featured: boolean
   order: number
@@ -116,6 +123,15 @@ interface ContentFormData {
   aboutText: string
   seoTitle: string
   seoDescription: string
+}
+
+interface ContactMessage {
+  id: string
+  name: string
+  phone: string
+  message: string
+  read: boolean
+  createdAt: string
 }
 
 interface SiteSettingsData {
@@ -151,6 +167,7 @@ const sidebarItems: {
   { id: 'dashboard', label: 'Gösterge Paneli', icon: LayoutDashboard },
   { id: 'products', label: 'Ürünler', icon: Package },
   { id: 'categories', label: 'Kategoriler', icon: FolderOpen },
+  { id: 'messages', label: 'Mesajlar', icon: MessageSquare },
   { id: 'content', label: 'İçerik', icon: FileText },
   { id: 'settings', label: 'Ayarlar', icon: Settings },
 ]
@@ -159,6 +176,7 @@ const emptyProductForm: ProductFormData = {
   name: '',
   description: '',
   image: '',
+  images: [],
   categoryId: '',
   featured: false,
   order: 0,
@@ -186,6 +204,7 @@ const tabLabels: Record<AdminTab, string> = {
   dashboard: 'Gösterge Paneli',
   products: 'Ürünler',
   categories: 'Kategoriler',
+  messages: 'Gelen Mesajlar',
   content: 'İçerik Yönetimi',
   settings: 'Ayarlar',
 }
@@ -233,6 +252,10 @@ export default function AdminPanel() {
   /* ---- Delete state ---- */
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
 
+  /* ---- Bulk select state ---- */
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkDeleting, setBulkDeleting] = useState(false)
+
   /* ---- Category form state ---- */
   const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
@@ -245,6 +268,10 @@ export default function AdminPanel() {
   const [contentSaving, setContentSaving] = useState(false)
   const [settingsForm, setSettingsForm] = useState<SettingsFormData>(defaultSettingsForm)
   const [settingsSaving, setSettingsSaving] = useState(false)
+
+  /* ---- Messages state ---- */
+  const [messages, setMessages] = useState<ContactMessage[]>([])
+  const [messagesLoading, setMessagesLoading] = useState(false)
 
   /* ================================================================ */
   /*  Data Fetching                                                    */
@@ -289,19 +316,52 @@ export default function AdminPanel() {
 
   useEffect(() => {
     fetchData()
-  }, [fetchData])
+    fetchMessages()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /* ================================================================ */
   /*  Handlers                                                         */
   /* ================================================================ */
 
+  const fetchMessages = async () => {
+    setMessagesLoading(true)
+    try {
+      const res = await fetch('/api/contact')
+      const data = await res.json()
+      setMessages(data)
+    } catch {
+      toast.error('Mesajlar yüklenemedi')
+    } finally {
+      setMessagesLoading(false)
+    }
+  }
+
+  const handleMarkRead = async (id: string) => {
+    await fetch(`/api/contact/${id}`, { method: 'PATCH' })
+    setMessages((prev) => prev.map((m) => m.id === id ? { ...m, read: true } : m))
+  }
+
+  const handleDeleteMessage = async (id: string) => {
+    await fetch(`/api/contact/${id}`, { method: 'DELETE' })
+    setMessages((prev) => prev.filter((m) => m.id !== id))
+    toast.success('Mesaj silindi')
+  }
+
   const handleTabChange = (tab: AdminTab) => {
     setAdminTab(tab)
     setMobileSidebarOpen(false)
+    if (tab === 'messages') fetchMessages()
   }
 
   const handleBackToSite = () => {
     router.push('/')
+  }
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/admin/login')
+    router.refresh()
   }
 
   /* ---- Category handlers ---- */
@@ -403,10 +463,13 @@ export default function AdminPanel() {
 
   const openEditProduct = (product: Product) => {
     setEditingProduct(product)
+    let parsedImages: string[] = []
+    try { parsedImages = JSON.parse((product as unknown as { images?: string }).images ?? '[]') } catch { parsedImages = [] }
     setProductForm({
       name: product.name,
       description: product.description || '',
       image: product.image,
+      images: parsedImages,
       categoryId: product.categoryId,
       featured: product.featured,
       order: product.order,
@@ -421,20 +484,31 @@ export default function AdminPanel() {
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files ?? [])
+    if (files.length === 0) return
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      const data = await res.json()
-      if (data.url) {
-        setProductForm((prev) => ({ ...prev, image: data.url }))
-        toast.success('Resim başarıyla yüklendi')
+      const urls: string[] = []
+      for (const file of files) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch('/api/upload', { method: 'POST', body: formData })
+        const data = await res.json()
+        if (data.url) urls.push(data.url)
+      }
+
+      if (urls.length > 0) {
+        setProductForm((prev) => {
+          if (!prev.image) {
+            // İlk görsel ana görsel olsun
+            return { ...prev, image: urls[0], images: [...prev.images, ...urls.slice(1)] }
+          }
+          return { ...prev, images: [...prev.images, ...urls] }
+        })
+        toast.success(`${urls.length} görsel yüklendi`)
       } else {
-        toast.error('Resim yüklenirken hata oluştu')
+        toast.error('Görsel yüklenemedi')
       }
     } catch {
       toast.error('Dosya yüklenirken hata oluştu')
@@ -460,7 +534,10 @@ export default function AdminPanel() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productForm),
+        body: JSON.stringify({
+          ...productForm,
+          images: JSON.stringify(productForm.images),
+        }),
       })
 
       if (res.ok) {
@@ -516,6 +593,64 @@ export default function AdminPanel() {
       }
     } catch {
       toast.error('Güncellenirken hata oluştu')
+    }
+  }
+
+  /* ---- Bulk operations ---- */
+
+  const toggleSelectProduct = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === filteredProducts.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(filteredProducts.map((p) => p.id)))
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return
+    setBulkDeleting(true)
+    try {
+      await Promise.all(
+        [...selectedIds].map((id) => fetch(`/api/products/${id}`, { method: 'DELETE' }))
+      )
+      setProducts((prev) => prev.filter((p) => !selectedIds.has(p.id)))
+      setSelectedIds(new Set())
+      toast.success(`${selectedIds.size} ürün silindi`)
+    } catch {
+      toast.error('Toplu silme sırasında hata oluştu')
+    } finally {
+      setBulkDeleting(false)
+    }
+  }
+
+  const handleBulkFeature = async (featured: boolean) => {
+    if (selectedIds.size === 0) return
+    try {
+      await Promise.all(
+        [...selectedIds].map((id) =>
+          fetch(`/api/products/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ featured }),
+          })
+        )
+      )
+      setProducts((prev) =>
+        prev.map((p) => selectedIds.has(p.id) ? { ...p, featured } : p)
+      )
+      setSelectedIds(new Set())
+      toast.success(featured ? 'Öne çıkan olarak işaretlendi' : 'Öne çıkarılandan kaldırıldı')
+    } catch {
+      toast.error('Toplu güncelleme sırasında hata oluştu')
     }
   }
 
@@ -599,6 +734,12 @@ export default function AdminPanel() {
   const totalCategories = categories.length
   const totalParentCategories = categories.filter((c) => !c.parentId).length
   const totalFeatured = products.filter((p) => p.featured).length
+  const totalViews = products.reduce((sum, p) => sum + (p.viewCount ?? 0), 0)
+  const unreadMessages = messages.filter((m) => !m.read).length
+  const topViewedProducts = [...products]
+    .sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0))
+    .filter((p) => (p.viewCount ?? 0) > 0)
+    .slice(0, 5)
 
   /* ================================================================ */
   /*  Sidebar Content (shared between desktop & mobile sheet)          */
@@ -681,11 +822,18 @@ export default function AdminPanel() {
         bg: 'bg-amber-100',
       },
       {
-        label: 'Son Eklenen',
-        value: products.length > 0 ? '✓' : '-',
-        icon: TrendingUp,
+        label: 'Toplam Görüntülenme',
+        value: totalViews.toLocaleString('tr-TR'),
+        icon: Eye,
         color: 'text-emerald-600',
         bg: 'bg-emerald-100',
+      },
+      {
+        label: unreadMessages > 0 ? `${unreadMessages} okunmamış mesaj` : 'Gelen Mesajlar',
+        value: unreadMessages > 0 ? unreadMessages : '—',
+        icon: MessageSquare,
+        color: unreadMessages > 0 ? 'text-blue-600' : 'text-[#8b7355]',
+        bg: unreadMessages > 0 ? 'bg-blue-100' : 'bg-[#8b7355]/10',
       },
     ]
 
@@ -813,6 +961,51 @@ export default function AdminPanel() {
           </Card>
         </div>
 
+        {/* Top Viewed Products */}
+        {topViewedProducts.length > 0 && (
+          <Card className="border-[#e8e0d4] bg-white shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-2">
+                <Eye className="h-4 w-4 text-emerald-600" />
+                <CardTitle className="text-[#3d2c1e] text-base">En Çok Görüntülenen Ürünler</CardTitle>
+              </div>
+              <CardDescription className="text-[#8b7355]">Son güncelleme: gerçek zamanlı</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {topViewedProducts.map((product, index) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-[#f0ebe3] transition-colors cursor-pointer"
+                    onClick={() => openEditProduct(product)}
+                  >
+                    <span className="text-xs font-bold text-[#c4b49a] w-5 text-center shrink-0">
+                      #{index + 1}
+                    </span>
+                    <div className="w-8 h-8 rounded bg-[#e8e0d4] overflow-hidden shrink-0 relative">
+                      {product.image ? (
+                        <Image src={product.image} alt={product.name} fill className="object-cover" sizes="32px" />
+                      ) : (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <ImageIcon className="h-3 w-3 text-[#a67c52]" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-[#3d2c1e] truncate">{product.name}</p>
+                      <p className="text-xs text-[#8b7355] truncate">{product.category.name}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-emerald-600 shrink-0">
+                      <Eye className="h-3.5 w-3.5" />
+                      <span className="text-sm font-semibold">{(product.viewCount ?? 0).toLocaleString('tr-TR')}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Recent Products */}
         {products.length > 0 && (
           <Card className="border-[#e8e0d4] bg-white shadow-sm">
@@ -918,6 +1111,55 @@ export default function AdminPanel() {
         )}
       </div>
 
+      {/* Bulk Action Toolbar */}
+      {selectedIds.size > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-3 p-3 rounded-xl bg-[#3d2c1e] text-white flex-wrap"
+        >
+          <span className="text-sm font-medium shrink-0">
+            {selectedIds.size} ürün seçildi
+          </span>
+          <div className="flex gap-2 ml-auto flex-wrap">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => handleBulkFeature(true)}
+              className="bg-amber-100 text-amber-700 hover:bg-amber-200 border-0 h-8"
+            >
+              <Star className="h-3.5 w-3.5 mr-1.5 fill-amber-500 text-amber-500" />
+              Öne Çıkar
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => handleBulkFeature(false)}
+              className="bg-white/10 text-white hover:bg-white/20 h-8"
+            >
+              Normalleştir
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleBulkDelete}
+              disabled={bulkDeleting}
+              className="bg-red-500 hover:bg-red-600 text-white h-8"
+            >
+              <Trash2 className="h-3.5 w-3.5 mr-1.5" />
+              {bulkDeleting ? 'Siliniyor...' : 'Seçilenleri Sil'}
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setSelectedIds(new Set())}
+              className="text-white/70 hover:text-white hover:bg-white/10 h-8"
+            >
+              <X className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Product List */}
       <Card className="border-[#e8e0d4] bg-white shadow-sm overflow-hidden">
         {filteredProducts.length === 0 ? (
@@ -944,6 +1186,13 @@ export default function AdminPanel() {
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#e8e0d4] bg-[#f8f5f0]/80">
+                    <th className="p-4 w-10">
+                      <Checkbox
+                        checked={filteredProducts.length > 0 && selectedIds.size === filteredProducts.length}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Tümünü seç"
+                      />
+                    </th>
                     <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
                       Ürün
                     </th>
@@ -952,6 +1201,9 @@ export default function AdminPanel() {
                     </th>
                     <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
                       Durum
+                    </th>
+                    <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
+                      Görüntülenme
                     </th>
                     <th className="text-right p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
                       İşlemler
@@ -965,8 +1217,15 @@ export default function AdminPanel() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: i * 0.03 }}
-                      className="hover:bg-[#f8f5f0]/50 transition-colors"
+                      className={`hover:bg-[#f8f5f0]/50 transition-colors ${selectedIds.has(product.id) ? 'bg-[#f8f5f0]' : ''}`}
                     >
+                      <td className="p-4">
+                        <Checkbox
+                          checked={selectedIds.has(product.id)}
+                          onCheckedChange={() => toggleSelectProduct(product.id)}
+                          aria-label={`Seç: ${product.name}`}
+                        />
+                      </td>
                       <td className="p-4">
                         <div className="flex items-center gap-3">
                           <div className="w-11 h-11 rounded-lg bg-[#f0ebe3] overflow-hidden shrink-0 relative">
@@ -1023,6 +1282,17 @@ export default function AdminPanel() {
                             </Badge>
                           )}
                         </button>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center gap-1.5 text-[#8b7355]">
+                          <Eye className="h-3.5 w-3.5" />
+                          <span className="text-sm">
+                            {(product.viewCount ?? 0) > 0
+                              ? (product.viewCount).toLocaleString('tr-TR')
+                              : <span className="text-[#c4b49a]">—</span>
+                            }
+                          </span>
+                        </div>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-1">
@@ -1467,6 +1737,146 @@ export default function AdminPanel() {
   )
 
   /* ================================================================ */
+  /*  Messages Tab                                                      */
+  /* ================================================================ */
+
+  const renderMessages = () => {
+    const unread = messages.filter((m) => !m.read).length
+
+    return (
+      <div className="space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-[#3d2c1e]">Gelen Mesajlar</h2>
+            <p className="text-sm text-[#8b7355] mt-1">
+              {unread > 0 ? `${unread} okunmamış mesaj` : 'Tüm mesajlar okundu'}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={fetchMessages}
+            className="border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3]"
+          >
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Yenile
+          </Button>
+        </div>
+
+        {messagesLoading ? (
+          <div className="space-y-3">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="h-28 rounded-xl bg-[#f0ebe3] animate-pulse" />
+            ))}
+          </div>
+        ) : messages.length === 0 ? (
+          <Card className="border-[#e8e0d4] bg-white">
+            <CardContent className="py-16 text-center">
+              <MessageSquare className="h-12 w-12 mx-auto text-[#e8e0d4] mb-4" />
+              <p className="text-[#8b7355] font-medium">Henüz mesaj yok</p>
+              <p className="text-sm text-[#c4b49a] mt-1">İletişim formundan gelen mesajlar burada görünür</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {messages.map((msg) => (
+              <Card
+                key={msg.id}
+                className={`border transition-all ${msg.read ? 'border-[#e8e0d4] bg-white' : 'border-[#a67c52]/30 bg-[#a67c52]/5'}`}
+              >
+                <CardContent className="p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-4 min-w-0 flex-1">
+                      {/* Avatar */}
+                      <div className="w-10 h-10 rounded-full bg-[#a67c52]/10 flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-sm font-bold text-[#a67c52]">
+                          {msg.name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <span className="font-semibold text-[#3d2c1e]">{msg.name}</span>
+                          {!msg.read && (
+                            <Badge className="bg-[#a67c52] text-white text-xs border-0 px-1.5 py-0">
+                              Yeni
+                            </Badge>
+                          )}
+                          <span className="text-xs text-[#c4b49a] flex items-center gap-1">
+                            <Clock className="h-3 w-3" />
+                            {new Date(msg.createdAt).toLocaleString('tr-TR', {
+                              day: '2-digit', month: '2-digit', year: 'numeric',
+                              hour: '2-digit', minute: '2-digit',
+                            })}
+                          </span>
+                        </div>
+
+                        <a
+                          href={`tel:${msg.phone}`}
+                          className="text-sm text-[#a67c52] hover:underline flex items-center gap-1 mb-2"
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                          {msg.phone}
+                        </a>
+
+                        <p className="text-sm text-[#3d2c1e] leading-relaxed bg-[#f8f5f0] rounded-lg p-3">
+                          {msg.message}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <a
+                        href={`https://wa.me/${msg.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Merhaba ${msg.name}, mesajınızı aldım.`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button
+                          size="sm"
+                          className="w-full text-white text-xs"
+                          style={{ backgroundColor: '#25D366' }}
+                        >
+                          <svg className="h-3.5 w-3.5 mr-1" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                          </svg>
+                          Yanıtla
+                        </Button>
+                      </a>
+
+                      {!msg.read && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleMarkRead(msg.id)}
+                          className="w-full text-xs border-[#e8e0d4] text-[#8b7355] hover:bg-[#f0ebe3]"
+                        >
+                          <CheckCheck className="h-3.5 w-3.5 mr-1" />
+                          Okundu
+                        </Button>
+                      )}
+
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="w-full text-xs text-red-400 hover:text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5 mr-1" />
+                        Sil
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  /* ================================================================ */
   /*  Settings Tab                                                      */
   /* ================================================================ */
 
@@ -1671,6 +2081,8 @@ export default function AdminPanel() {
         return renderProducts()
       case 'categories':
         return renderCategories()
+      case 'messages':
+        return renderMessages()
       case 'content':
         return renderContent()
       case 'settings':
@@ -1691,15 +2103,19 @@ export default function AdminPanel() {
       {/* ============================================================ */}
       <aside className="hidden lg:flex lg:flex-col lg:fixed lg:top-0 lg:left-0 lg:bottom-0 lg:w-64 bg-[#3d2c1e] z-40">
         {/* Brand */}
-        <div className="px-5 py-5 border-b border-white/10">
+        <div className="px-5 py-4 border-b border-white/10">
           <button
             onClick={handleBackToSite}
             className="flex flex-col items-start group"
           >
-            <span className="text-xl font-bold text-[#a67c52] tracking-wide group-hover:text-[#c49a6c] transition-colors">
-              Birer Tekstil
-            </span>
-            <span className="text-[10px] text-white/40 tracking-[0.2em] uppercase mt-0.5">
+            <Image
+              src="/logo.png"
+              alt="Birer Tekstil"
+              width={120}
+              height={48}
+              className="h-10 w-auto object-contain brightness-0 invert"
+            />
+            <span className="text-[10px] text-white/40 tracking-[0.2em] uppercase mt-1">
               Yönetim Paneli
             </span>
           </button>
@@ -1710,14 +2126,21 @@ export default function AdminPanel() {
           {renderSidebarNav(handleTabChange)}
         </ScrollArea>
 
-        {/* Back to Site */}
-        <div className="p-4 border-t border-white/10">
+        {/* Back to Site + Logout */}
+        <div className="p-4 border-t border-white/10 space-y-1">
           <button
             onClick={handleBackToSite}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/8 transition-all"
           >
             <ArrowLeft className="h-4 w-4" />
             <span>Ana Sayfaya Dön</span>
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Çıkış Yap</span>
           </button>
         </div>
       </aside>
@@ -1733,15 +2156,19 @@ export default function AdminPanel() {
           <SheetTitle className="sr-only">Yönetim Menüsü</SheetTitle>
 
           {/* Brand */}
-          <div className="px-5 py-5 border-b border-white/10">
+          <div className="px-5 py-4 border-b border-white/10">
             <button
               onClick={handleBackToSite}
               className="flex flex-col items-start"
             >
-              <span className="text-xl font-bold text-[#a67c52] tracking-wide">
-                Birer Tekstil
-              </span>
-              <span className="text-[10px] text-white/40 tracking-[0.2em] uppercase mt-0.5">
+              <Image
+                src="/logo.png"
+                alt="Birer Tekstil"
+                width={120}
+                height={48}
+                className="h-10 w-auto object-contain brightness-0 invert"
+              />
+              <span className="text-[10px] text-white/40 tracking-[0.2em] uppercase mt-1">
                 Yönetim Paneli
               </span>
             </button>
@@ -1899,42 +2326,52 @@ export default function AdminPanel() {
               />
             </div>
 
-            {/* Image Upload */}
+            {/* Image Upload — çoklu görsel */}
             <div className="space-y-3">
-              <Label className="text-[#3d2c1e]">Ürün Görseli</Label>
-              {productForm.image ? (
-                <div className="relative w-full max-w-[240px] h-48 rounded-xl overflow-hidden border border-[#e8e0d4] group">
-                  <Image
-                    src={productForm.image}
-                    alt="Ürün görseli"
-                    fill
-                    className="object-cover"
-                    sizes="240px"
-                  />
-                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                    <button
-                      onClick={() =>
-                        setProductForm({ ...productForm, image: '' })
-                      }
-                      className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="w-full max-w-[240px] h-48 rounded-xl border-2 border-dashed border-[#e8e0d4] flex items-center justify-center hover:border-[#a67c52]/40 transition-colors">
-                  <div className="text-center">
-                    <ImageIcon className="h-10 w-10 mx-auto text-[#c4b49a] mb-2" />
-                    <p className="text-xs text-[#8b7355]">Henüz görsel yüklenmedi</p>
-                  </div>
+              <Label className="text-[#3d2c1e]">
+                Ürün Görselleri
+                <span className="ml-2 text-xs text-[#8b7355] font-normal">
+                  (ilk görsel ana görsel, birden fazla seçebilirsiniz)
+                </span>
+              </Label>
+
+              {/* Mevcut görseller grid */}
+              {(productForm.image || productForm.images.length > 0) && (
+                <div className="flex flex-wrap gap-2">
+                  {/* Ana görsel */}
+                  {productForm.image && (
+                    <div className="relative w-24 h-24 rounded-lg overflow-hidden border-2 border-[#a67c52] group">
+                      <Image src={productForm.image} alt="Ana görsel" fill className="object-cover" sizes="96px" />
+                      <div className="absolute top-0.5 left-0.5 bg-[#a67c52] text-white text-[9px] px-1 rounded">Ana</div>
+                      <button
+                        onClick={() => setProductForm((p) => ({ ...p, image: p.images[0] ?? '', images: p.images.slice(1) }))}
+                        className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center"
+                      >
+                        <X className="h-4 w-4 text-white opacity-0 group-hover:opacity-100" />
+                      </button>
+                    </div>
+                  )}
+                  {/* Ek görseller */}
+                  {productForm.images.map((url, i) => (
+                    <div key={i} className="relative w-24 h-24 rounded-lg overflow-hidden border border-[#e8e0d4] group">
+                      <Image src={url} alt={`Görsel ${i + 2}`} fill className="object-cover" sizes="96px" />
+                      <button
+                        onClick={() => setProductForm((p) => ({ ...p, images: p.images.filter((_, idx) => idx !== i) }))}
+                        className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center"
+                      >
+                        <X className="h-4 w-4 text-white opacity-0 group-hover:opacity-100" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
               )}
+
               <div className="flex items-center gap-3">
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleImageUpload}
                   className="hidden"
                 />
@@ -1950,8 +2387,13 @@ export default function AdminPanel() {
                   ) : (
                     <Upload className="h-4 w-4 mr-2" />
                   )}
-                  {uploading ? 'Yükleniyor...' : 'Dosya Yükle'}
+                  {uploading ? 'Yükleniyor...' : 'Görsel Yükle'}
                 </Button>
+                {(productForm.image || productForm.images.length > 0) && (
+                  <span className="text-xs text-[#8b7355]">
+                    {1 + productForm.images.length} görsel
+                  </span>
+                )}
               </div>
             </div>
 

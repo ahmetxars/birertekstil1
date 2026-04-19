@@ -1,26 +1,20 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { Package, Award, Layers, MessageCircle } from 'lucide-react'
+import { Award, MessageCircle, Truck } from 'lucide-react'
 
 const stats = [
   {
-    number: '500+',
-    title: 'Ürün Çeşidi',
-    description: 'Geniş ürün yelpazesi',
-    icon: Package,
+    number: '✓',
+    title: 'Aynı Gün Kargo',
+    description: 'Hızlı ve güvenli teslimat',
+    icon: Truck,
   },
   {
     number: '20+',
     title: 'Yıllık Deneyim',
     description: 'Sektör tecrübesi',
     icon: Award,
-  },
-  {
-    number: '8',
-    title: 'Ürün Grubu',
-    description: 'Farklı kategori',
-    icon: Layers,
   },
   {
     number: '7/24',
@@ -46,13 +40,13 @@ const itemVariants = {
 export default function StatsSection() {
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-4xl mx-auto">
         <motion.div
           variants={containerVariants}
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: '-50px' }}
-          className="grid grid-cols-2 gap-4 md:gap-6"
+          className="grid grid-cols-3 gap-4 md:gap-6"
         >
           {stats.map((stat) => (
             <motion.div

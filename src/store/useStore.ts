@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 export type Page = 'home' | 'category' | 'product' | 'admin'
-export type AdminTab = 'dashboard' | 'products' | 'categories' | 'content' | 'settings'
+export type AdminTab = 'dashboard' | 'products' | 'categories' | 'content' | 'settings' | 'messages'
 
 interface AppState {
   page: Page
