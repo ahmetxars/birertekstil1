@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { writeFile, mkdir } from 'fs/promises'
 import { join } from 'path'
+import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
 
 // ── Cloudinary (optional) ──────────────────────────────────────────────────
 // Set these env vars to enable Cloudinary. If not set, falls back to local disk.
@@ -52,6 +53,10 @@ async function uploadToLocal(buffer: Buffer, originalName: string): Promise<stri
 
 // ── Route handler ──────────────────────────────────────────────────────────
 export async function POST(request: NextRequest) {
+  if (!isValidAdminSessionToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)) {
+    return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 })
+  }
+
   try {
     const formData = await request.formData()
     const file = formData.get('file') as File | null

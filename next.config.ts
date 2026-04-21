@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -18,6 +19,9 @@ const nextConfig: NextConfig = {
         hostname: "plus.unsplash.com",
       },
     ],
+  },
+  turbopack: {
+    root: path.resolve(__dirname),
   },
 };
 

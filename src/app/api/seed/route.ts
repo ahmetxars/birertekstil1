@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
+import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
 import { db } from '@/lib/db'
 
 const seedData = [
@@ -317,6 +319,11 @@ const brands = [
 ]
 
 export async function POST() {
+  const cookieStore = await cookies()
+  if (!isValidAdminSessionToken(cookieStore.get(ADMIN_SESSION_COOKIE)?.value)) {
+    return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 })
+  }
+
   try {
     // Clear existing data in order (FK constraints)
     await db.product.deleteMany()

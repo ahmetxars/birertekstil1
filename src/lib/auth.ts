@@ -1,74 +1,57 @@
-// Web Crypto API — hem Edge (middleware) hem Node.js (API routes) ile çalışır
+import { createHmac, timingSafeEqual } from 'node:crypto'
+import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
+import { ADMIN_PATH, LOGIN_PATH } from '@/lib/site'
 
-const TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7 gün
-export const COOKIE_NAME = 'bt-admin-token'
+export const ADMIN_SESSION_COOKIE = 'birer_admin_session'
 
-function getSecret(): string {
-  return process.env.AUTH_SECRET ?? 'dev-secret-change-in-production'
-}
-
-async function getHmacKey(secret: string): Promise<CryptoKey> {
-  const enc = new TextEncoder()
-  return crypto.subtle.importKey(
-    'raw',
-    enc.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign', 'verify']
-  )
-}
-
-function toHex(buf: ArrayBuffer): string {
-  return Array.from(new Uint8Array(buf))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('')
-}
-
-function fromHex(hex: string): Uint8Array {
-  const arr = new Uint8Array(hex.length / 2)
-  for (let i = 0; i < hex.length; i += 2) {
-    arr[i / 2] = parseInt(hex.slice(i, i + 2), 16)
+function getEnv(name: string) {
+  const value = process.env[name]
+  if (!value) {
+    throw new Error(`${name} env değişkeni tanımlı değil`)
   }
-  return arr
+  return value
 }
 
-// ── Token oluştur ─────────────────────────────────────────────────────────
-export async function createToken(): Promise<string> {
-  const payload = `admin:${Date.now()}`
-  const key = await getHmacKey(getSecret())
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(payload))
-  const token = `${payload}:${toHex(sig)}`
-  return btoa(token)
+export function getAdminCredentials() {
+  return {
+    username: getEnv('ADMIN_USERNAME'),
+    password: getEnv('ADMIN_PASSWORD'),
+    secret: getEnv('AUTH_SECRET'),
+  }
 }
 
-// ── Token doğrula ─────────────────────────────────────────────────────────
-export async function verifyToken(token?: string | null): Promise<boolean> {
+function createSignature(username: string, secret: string) {
+  return createHmac('sha256', secret).update(username).digest('hex')
+}
+
+export function createAdminSessionToken(username: string) {
+  const { secret } = getAdminCredentials()
+  return `${username}.${createSignature(username, secret)}`
+}
+
+export function isValidAdminSessionToken(token?: string | null) {
   if (!token) return false
-  try {
-    const decoded = atob(token)
-    const lastColon = decoded.lastIndexOf(':')
-    if (lastColon === -1) return false
 
-    const payload = decoded.substring(0, lastColon)
-    const sigHex = decoded.substring(lastColon + 1)
+  const [username, signature] = token.split('.')
+  if (!username || !signature) return false
 
-    // Süre kontrolü
-    const issuedAt = parseInt(payload.split(':')[1] ?? '0', 10)
-    if (isNaN(issuedAt) || Date.now() - issuedAt > TOKEN_TTL_MS) return false
+  const { username: expectedUsername, secret } = getAdminCredentials()
+  if (username !== expectedUsername) return false
 
-    // İmza doğrulama
-    const key = await getHmacKey(getSecret())
-    const sig = fromHex(sigHex)
-    return await crypto.subtle.verify('HMAC', key, sig, new TextEncoder().encode(payload))
-  } catch {
-    return false
-  }
+  const expected = createSignature(username, secret)
+  if (signature.length !== expected.length) return false
+
+  return timingSafeEqual(Buffer.from(signature), Buffer.from(expected))
 }
 
-// ── Kullanıcı adı / şifre kontrolü ───────────────────────────────────────
-// Timing-safe olmayan basit karşılaştırma (brute-force'a login endpoint'teki 800ms bekleme karşı koyar)
-export function checkCredentials(username: string, password: string): boolean {
-  const validUser = process.env.ADMIN_USERNAME ?? 'birertekstil1'
-  const validPass = process.env.ADMIN_PASSWORD ?? 'berat25Erzurum.'
-  return username === validUser && password === validPass
+export async function isAdminAuthenticated() {
+  const cookieStore = await cookies()
+  return isValidAdminSessionToken(cookieStore.get(ADMIN_SESSION_COOKIE)?.value)
+}
+
+export async function requireAdminUser() {
+  if (!(await isAdminAuthenticated())) {
+    redirect(`${LOGIN_PATH}?next=${encodeURIComponent(ADMIN_PATH)}`)
+  }
 }

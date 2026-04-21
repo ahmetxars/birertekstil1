@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
 import { db } from '@/lib/db'
+
+function isAuthorized(request: NextRequest) {
+  return isValidAdminSessionToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)
+}
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,6 +40,10 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: 'Yetkisiz erişim' }, { status: 401 })
+  }
+
   try {
     const body = await request.json()
     const { name, description, image, images, categoryId, featured, order } = body

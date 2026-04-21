@@ -1,33 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { checkCredentials, createToken, COOKIE_NAME } from '@/lib/auth'
+import { ADMIN_SESSION_COOKIE, createAdminSessionToken, getAdminCredentials } from '@/lib/auth'
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json()
+    const body = await request.json()
+    const { username, password } = body as { username?: string; password?: string }
+    const credentials = getAdminCredentials()
 
-    if (!username || !password) {
-      return NextResponse.json({ error: 'Kullanıcı adı ve şifre gerekli' }, { status: 400 })
-    }
-
-    if (!checkCredentials(username, password)) {
-      // Kısa bekleme — brute-force'u yavaşlatır
-      await new Promise((r) => setTimeout(r, 800))
+    if (username !== credentials.username || password !== credentials.password) {
       return NextResponse.json({ error: 'Kullanıcı adı veya şifre hatalı' }, { status: 401 })
     }
 
-    const token = await createToken()
-
-    const response = NextResponse.json({ ok: true })
-    response.cookies.set(COOKIE_NAME, token, {
+    const response = NextResponse.json({ success: true })
+    response.cookies.set(ADMIN_SESSION_COOKIE, createAdminSessionToken(credentials.username), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 7, // 7 gün
+      secure: process.env.NODE_ENV === 'production',
       path: '/',
+      maxAge: 60 * 60 * 24 * 7,
     })
 
     return response
-  } catch {
-    return NextResponse.json({ error: 'Sunucu hatası' }, { status: 500 })
+  } catch (error) {
+    console.error('Login error:', error)
+    return NextResponse.json({ error: 'Giriş sırasında bir hata oluştu' }, { status: 500 })
   }
 }

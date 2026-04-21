@@ -1,148 +1,83 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { Toaster } from "@/components/ui/sonner";
+import type { Metadata } from 'next'
+import { Geist, Geist_Mono } from 'next/font/google'
+import './globals.css'
+import { Toaster } from '@/components/ui/sonner'
+import GoogleAnalytics from '@/components/site/GoogleAnalytics'
+import { SITE_NAME, SITE_URL } from '@/lib/site'
 
 const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+  variable: '--font-geist-sans',
+  subsets: ['latin'],
+})
 
 const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
-
-const BASE_URL = "https://www.birertekstil.com";
+  variable: '--font-geist-mono',
+  subsets: ['latin'],
+})
 
 export const metadata: Metadata = {
-  metadataBase: new URL(BASE_URL),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Birer Tekstil İstanbul | Ev Tekstili Ürünleri",
-    template: "%s | Birer Tekstil İstanbul",
+    default: `${SITE_NAME} | İstanbul'da Üreticiden Ev Tekstili`,
+    template: `%s | ${SITE_NAME}`,
   },
   description:
-    "İstanbul'da üreticiden kaliteli ev tekstili ürünleri. Nevresim, pike, saten, keten, kapitone ve daha fazlası. 20+ yıllık deneyim, aynı gün kargo.",
+    "İstanbul'da üreticiden kaliteli ev tekstili ürünleri. Pike, nevresim, keten, saten ve daha fazlası için Birer Tekstil koleksiyonunu inceleyin.",
   keywords: [
-    "ev tekstili", "nevresim takımı", "pike", "saten kumaş", "keten kumaş",
-    "kapitone", "İstanbul tekstil", "Birer Tekstil", "toptan tekstil",
-    "Gardenya keten", "Akfil saten", "Gonca pike", "Hera pike", "Limi pike",
+    'ev tekstili',
+    'nevresim',
+    'pike',
+    'ipek',
+    'keten',
+    'İstanbul',
+    'Türkiye',
+    'Birer Tekstil',
   ],
-  authors: [{ name: "Birer Tekstil" }],
-  creator: "Birer Tekstil",
-  publisher: "Birer Tekstil",
-  robots: {
-    index: true,
-    follow: true,
-    googleBot: { index: true, follow: true },
+  authors: [{ name: SITE_NAME }],
+  icons: {
+    icon: '/logo.svg',
   },
   openGraph: {
-    title: "Birer Tekstil İstanbul | Ev Tekstili Ürünleri",
+    title: `${SITE_NAME} | İstanbul'da Üreticiden Ev Tekstili`,
     description:
-      "İstanbul'da üreticiden kaliteli ev tekstili ürünleri. 20+ yıllık deneyim, aynı gün kargo.",
-    siteName: "Birer Tekstil",
-    type: "website",
-    url: BASE_URL,
-    locale: "tr_TR",
+      "İstanbul'da üreticiden kaliteli ev tekstili ürünleri. 20 yılı aşkın tecrübe ve WhatsApp üzerinden hızlı fiyat desteği.",
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    locale: 'tr_TR',
+    type: 'website',
+    images: [
+      {
+        url: '/hero-bg.png',
+        width: 1200,
+        height: 630,
+        alt: `${SITE_NAME} ana görseli`,
+      },
+    ],
   },
   twitter: {
-    card: "summary_large_image",
-    title: "Birer Tekstil İstanbul | Ev Tekstili Ürünleri",
-    description: "İstanbul'da üreticiden kaliteli ev tekstili ürünleri.",
+    card: 'summary_large_image',
+    title: `${SITE_NAME} | İstanbul'da Üreticiden Ev Tekstili`,
+    description:
+      "İstanbul'da üreticiden kaliteli ev tekstili ürünleri. WhatsApp üzerinden hızlı fiyat desteği alın.",
+    images: ['/hero-bg.png'],
   },
-  alternates: {
-    canonical: BASE_URL,
-  },
-};
-
-const localBusinessSchema = {
-  "@context": "https://schema.org",
-  "@type": "LocalBusiness",
-  "@id": `${BASE_URL}/#business`,
-  name: "Birer Tekstil",
-  description:
-    "İstanbul'da üreticiden kaliteli ev tekstili ürünleri. Nevresim, pike, saten, keten, kapitone ve daha fazlası.",
-  url: BASE_URL,
-  telephone: "+90-533-242-3665",
-  priceRange: "₺₺",
-  image: `${BASE_URL}/birerteks-logo.png`,
-  logo: `${BASE_URL}/birerteks-logo.png`,
-  address: {
-    "@type": "PostalAddress",
-    addressLocality: "İstanbul",
-    addressRegion: "İstanbul",
-    addressCountry: "TR",
-  },
-  geo: {
-    "@type": "GeoCoordinates",
-    latitude: 41.0082,
-    longitude: 28.9784,
-  },
-  openingHoursSpecification: [
-    {
-      "@type": "OpeningHoursSpecification",
-      dayOfWeek: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-      opens: "09:00",
-      closes: "18:00",
-    },
-    {
-      "@type": "OpeningHoursSpecification",
-      dayOfWeek: "Saturday",
-      opens: "09:00",
-      closes: "14:00",
-    },
-  ],
-  contactPoint: {
-    "@type": "ContactPoint",
-    telephone: "+90-533-242-3665",
-    contactType: "customer service",
-    availableLanguage: "Turkish",
-    contactOption: "TollFree",
-  },
-  sameAs: [],
-};
-
-const websiteSchema = {
-  "@context": "https://schema.org",
-  "@type": "WebSite",
-  "@id": `${BASE_URL}/#website`,
-  name: "Birer Tekstil",
-  url: BASE_URL,
-  inLanguage: "tr-TR",
-  potentialAction: {
-    "@type": "SearchAction",
-    target: {
-      "@type": "EntryPoint",
-      urlTemplate: `${BASE_URL}/urunler/{search_term_string}`,
-    },
-    "query-input": "required name=search_term_string",
-  },
-};
+}
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
     <html lang="tr" suppressHydrationWarning>
-      <head>
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(localBusinessSchema) }}
-        />
-        <script
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
-        />
-      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{ backgroundColor: '#f8f5f0', color: '#3d2c1e' }}
       >
+        <GoogleAnalytics gaId={process.env.NEXT_PUBLIC_GA_ID} />
         {children}
         <Toaster richColors position="top-center" />
       </body>
     </html>
-  );
+  )
 }
