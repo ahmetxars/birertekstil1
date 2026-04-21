@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Package,
@@ -18,8 +19,6 @@ import {
   Search,
   ArrowLeft,
   Home,
-  Phone,
-  MapPin,
   Mail,
   RefreshCw,
   Save,
@@ -28,6 +27,7 @@ import {
   Menu,
   Sparkles,
   TrendingUp,
+  LogOut,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -111,18 +111,14 @@ interface ContentFormData {
   heroTitle: string
   heroSubtitle: string
   aboutText: string
-  seoTitle: string
-  seoDescription: string
 }
 
 interface SettingsFormData {
-  siteName: string
   whatsappNumber: string
   phone: string
   address: string
   email: string
   instagramUrl: string
-  facebookUrl: string
 }
 
 /* ------------------------------------------------------------------ */
@@ -151,21 +147,17 @@ const emptyProductForm: ProductFormData = {
 }
 
 const defaultContentForm: ContentFormData = {
-  heroTitle: 'Birer Tekstil',
-  heroSubtitle: 'Kaliteli Ev Tekstili Ürünleri | İstanbul',
+  heroTitle: "İstanbul'da Üreticiden Kaliteli Ev Tekstili Ürünleri",
+  heroSubtitle: 'Birer Tekstil İstanbul',
   aboutText: '',
-  seoTitle: 'Birer Tekstil - Ev Tekstili',
-  seoDescription: 'Birer Tekstil ev tekstili ürünleri',
 }
 
 const defaultSettingsForm: SettingsFormData = {
-  siteName: 'Birer Tekstil',
   whatsappNumber: '+905332423665',
   phone: '+90 533 242 36 65',
   address: 'İstanbul, Türkiye',
   email: 'info@birertekstil.com',
   instagramUrl: '',
-  facebookUrl: '',
 }
 
 const tabLabels: Record<AdminTab, string> = {
@@ -196,7 +188,8 @@ const sidebarItemVariants = {
 /* ================================================================== */
 
 export default function AdminPanel() {
-  const { adminTab, setAdminTab, navigate } = useStore()
+  const router = useRouter()
+  const { adminTab, setAdminTab } = useStore()
 
   /* ---- Data state ---- */
   const [products, setProducts] = useState<Product[]>([])
@@ -230,20 +223,40 @@ export default function AdminPanel() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [productsRes, categoriesRes] = await Promise.all([
+      const [productsRes, categoriesRes, settingsRes] = await Promise.all([
         fetch('/api/products'),
         fetch('/api/categories'),
+        fetch('/api/site-settings'),
       ])
+
+      if ([productsRes, categoriesRes, settingsRes].some((response) => response.status === 401)) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
+
       const productsData = await productsRes.json()
       const categoriesData = await categoriesRes.json()
+      const settingsData = await settingsRes.json()
       setProducts(productsData)
       setCategories(categoriesData)
+      setContentForm({
+        heroTitle: settingsData.heroTitle || defaultContentForm.heroTitle,
+        heroSubtitle: settingsData.heroSubtitle || defaultContentForm.heroSubtitle,
+        aboutText: settingsData.aboutText || '',
+      })
+      setSettingsForm({
+        whatsappNumber: settingsData.whatsappNumber || defaultSettingsForm.whatsappNumber,
+        phone: settingsData.phone || defaultSettingsForm.phone,
+        address: settingsData.address || defaultSettingsForm.address,
+        email: settingsData.email || defaultSettingsForm.email,
+        instagramUrl: settingsData.instagramUrl || '',
+      })
     } catch {
       toast.error('Veriler yüklenirken hata oluştu')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [router])
 
   useEffect(() => {
     fetchData()
@@ -259,7 +272,7 @@ export default function AdminPanel() {
   }
 
   const handleBackToSite = () => {
-    navigate('home')
+    router.push('/')
   }
 
   /* ---- Product handlers ---- */
@@ -298,6 +311,10 @@ export default function AdminPanel() {
       const formData = new FormData()
       formData.append('file', file)
       const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
       const data = await res.json()
       if (data.url) {
         setProductForm((prev) => ({ ...prev, image: data.url }))
@@ -332,6 +349,11 @@ export default function AdminPanel() {
         body: JSON.stringify(productForm),
       })
 
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
+
       if (res.ok) {
         toast.success(editingProduct ? 'Ürün güncellendi' : 'Ürün oluşturuldu')
         closeProductDialog()
@@ -352,6 +374,10 @@ export default function AdminPanel() {
       const res = await fetch(`/api/products/${deleteTarget.id}`, {
         method: 'DELETE',
       })
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
       if (res.ok) {
         toast.success('Ürün silindi')
         setProducts((prev) => prev.filter((p) => p.id !== deleteTarget.id))
@@ -371,6 +397,10 @@ export default function AdminPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ featured: !product.featured }),
       })
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
       if (res.ok) {
         toast.success(
           product.featured
@@ -391,6 +421,10 @@ export default function AdminPanel() {
   const handleSeed = async () => {
     try {
       const res = await fetch('/api/seed', { method: 'POST' })
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
       if (res.ok) {
         toast.success('Veriler başarıyla yenilendi')
         fetchData()
@@ -405,19 +439,49 @@ export default function AdminPanel() {
   /* ---- Content & Settings handlers ---- */
 
   const handleContentSave = () => {
-    setContentSaving(true)
-    setTimeout(() => {
-      setContentSaving(false)
-      toast.success('İçerik ayarları kaydedildi')
-    }, 800)
+    return handleSettingsPersist('İçerik ayarları kaydedildi', setContentSaving)
   }
 
   const handleSettingsSave = () => {
-    setSettingsSaving(true)
-    setTimeout(() => {
-      setSettingsSaving(false)
-      toast.success('Site ayarları kaydedildi')
-    }, 800)
+    return handleSettingsPersist('Site ayarları kaydedildi', setSettingsSaving)
+  }
+
+  const handleSettingsPersist = async (
+    successMessage: string,
+    setSaving: (value: boolean) => void
+  ) => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/site-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...contentForm,
+          ...settingsForm,
+        }),
+      })
+
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
+
+      if (res.ok) {
+        toast.success(successMessage)
+      } else {
+        toast.error('Ayarlar kaydedilirken hata oluştu')
+      }
+    } catch {
+      toast.error('Bağlantı hatası')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.push('/giris')
+    router.refresh()
   }
 
   /* ================================================================ */
@@ -513,8 +577,8 @@ export default function AdminPanel() {
         bg: 'bg-amber-100',
       },
       {
-        label: 'Son Eklenen',
-        value: products.length > 0 ? '✓' : '-',
+        label: 'Lead Kanalı',
+        value: 'WA',
         icon: TrendingUp,
         color: 'text-emerald-600',
         bg: 'bg-emerald-100',
@@ -1139,56 +1203,6 @@ export default function AdminPanel() {
             </div>
           </CardContent>
         </Card>
-
-        {/* SEO Section */}
-        <Card className="border-[#e8e0d4] bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-[#3d2c1e] text-base flex items-center gap-2">
-              <FileText className="h-4 w-4 text-[#a67c52]" />
-              SEO Ayarları
-            </CardTitle>
-            <CardDescription className="text-[#8b7355]">
-              Arama motoru optimizasyonu metinlerini düzenleyin
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="seoTitle" className="text-[#3d2c1e]">
-                SEO Başlığı
-              </Label>
-              <Input
-                id="seoTitle"
-                value={contentForm.seoTitle}
-                onChange={(e) =>
-                  setContentForm({ ...contentForm, seoTitle: e.target.value })
-                }
-                placeholder="SEO başlığı"
-                className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="seoDescription" className="text-[#3d2c1e]">
-                SEO Açıklaması
-              </Label>
-              <Textarea
-                id="seoDescription"
-                value={contentForm.seoDescription}
-                onChange={(e) =>
-                  setContentForm({
-                    ...contentForm,
-                    seoDescription: e.target.value,
-                  })
-                }
-                placeholder="SEO açıklaması"
-                rows={3}
-                className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20 resize-none"
-              />
-              <p className="text-xs text-[#8b7355]">
-                {contentForm.seoDescription.length}/160 karakter
-              </p>
-            </div>
-          </CardContent>
-        </Card>
       </div>
 
       {/* About Section */}
@@ -1260,16 +1274,30 @@ export default function AdminPanel() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="siteName" className="text-[#3d2c1e]">
-                Site Adı
+              <Label htmlFor="whatsappNumber" className="text-[#3d2c1e]">
+                WhatsApp Numarası
               </Label>
               <Input
-                id="siteName"
-                value={settingsForm.siteName}
+                id="whatsappNumber"
+                value={settingsForm.whatsappNumber}
                 onChange={(e) =>
-                  setSettingsForm({ ...settingsForm, siteName: e.target.value })
+                  setSettingsForm({ ...settingsForm, whatsappNumber: e.target.value })
                 }
-                placeholder="Site adı"
+                placeholder="+905xxxxxxxxx"
+                className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="phone" className="text-[#3d2c1e]">
+                Telefon Numarası
+              </Label>
+              <Input
+                id="phone"
+                value={settingsForm.phone}
+                onChange={(e) =>
+                  setSettingsForm({ ...settingsForm, phone: e.target.value })
+                }
+                placeholder="+90 5xx xxx xx xx"
                 className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
               />
             </div>
@@ -1289,54 +1317,8 @@ export default function AdminPanel() {
                 className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
               />
             </div>
-          </CardContent>
-        </Card>
-
-        {/* Contact Settings */}
-        <Card className="border-[#e8e0d4] bg-white shadow-sm">
-          <CardHeader>
-            <CardTitle className="text-[#3d2c1e] text-base flex items-center gap-2">
-              <Phone className="h-4 w-4 text-[#a67c52]" />
-              İletişim Bilgileri
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="whatsapp" className="text-[#3d2c1e] flex items-center gap-2">
-                <Phone className="h-3.5 w-3.5" />
-                WhatsApp Numarası
-              </Label>
-              <Input
-                id="whatsapp"
-                value={settingsForm.whatsappNumber}
-                onChange={(e) =>
-                  setSettingsForm({
-                    ...settingsForm,
-                    whatsappNumber: e.target.value,
-                  })
-                }
-                placeholder="+905xxxxxxxxx"
-                className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="phone" className="text-[#3d2c1e] flex items-center gap-2">
-                <Phone className="h-3.5 w-3.5" />
-                Telefon
-              </Label>
-              <Input
-                id="phone"
-                value={settingsForm.phone}
-                onChange={(e) =>
-                  setSettingsForm({ ...settingsForm, phone: e.target.value })
-                }
-                placeholder="Telefon numarası"
-                className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="address" className="text-[#3d2c1e] flex items-center gap-2">
-                <MapPin className="h-3.5 w-3.5" />
+              <Label htmlFor="address" className="text-[#3d2c1e]">
                 Adres
               </Label>
               <Textarea
@@ -1345,7 +1327,7 @@ export default function AdminPanel() {
                 onChange={(e) =>
                   setSettingsForm({ ...settingsForm, address: e.target.value })
                 }
-                placeholder="Açık adres"
+                placeholder="İstanbul, Türkiye"
                 rows={3}
                 className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20 resize-none"
               />
@@ -1354,7 +1336,7 @@ export default function AdminPanel() {
         </Card>
 
         {/* Social Media */}
-        <Card className="border-[#e8e0d4] bg-white shadow-sm lg:col-span-2">
+        <Card className="border-[#e8e0d4] bg-white shadow-sm">
           <CardHeader>
             <CardTitle className="text-[#3d2c1e] text-base flex items-center gap-2">
               <ExternalLink className="h-4 w-4 text-[#a67c52]" />
@@ -1383,22 +1365,12 @@ export default function AdminPanel() {
                   className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="facebook" className="text-[#3d2c1e]">
-                  Facebook URL
-                </Label>
-                <Input
-                  id="facebook"
-                  value={settingsForm.facebookUrl}
-                  onChange={(e) =>
-                    setSettingsForm({
-                      ...settingsForm,
-                      facebookUrl: e.target.value,
-                    })
-                  }
-                  placeholder="https://facebook.com/..."
-                  className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
-                />
+              <div className="rounded-2xl border border-dashed border-[#e8e0d4] p-4 bg-[#f8f5f0]">
+                <p className="text-sm font-medium text-[#3d2c1e] mb-1">SEO Notu</p>
+                <p className="text-sm text-[#8b7355]">
+                  Sayfa başlıkları, açıklamalar, sitemap ve canonical yapısı artık otomatik
+                  üretiliyor. Bu alanda ekstra işlem yapmanız gerekmiyor.
+                </p>
               </div>
             </div>
           </CardContent>
@@ -1481,13 +1453,22 @@ export default function AdminPanel() {
 
         {/* Back to Site */}
         <div className="p-4 border-t border-white/10">
-          <button
-            onClick={handleBackToSite}
-            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/8 transition-all"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span>Ana Sayfaya Dön</span>
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={handleBackToSite}
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/8 transition-all"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span>Ana Sayfaya Dön</span>
+            </button>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/8 transition-all"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Çıkış Yap</span>
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -1523,13 +1504,22 @@ export default function AdminPanel() {
 
           {/* Back to Site */}
           <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-white/10">
-            <button
-              onClick={handleBackToSite}
-              className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/8 transition-all"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span>Ana Sayfaya Dön</span>
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={handleBackToSite}
+                className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/8 transition-all"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                <span>Ana Sayfaya Dön</span>
+              </button>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-white/50 hover:text-white hover:bg-white/8 transition-all"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Çıkış Yap</span>
+              </button>
+            </div>
           </div>
         </SheetContent>
       </Sheet>
