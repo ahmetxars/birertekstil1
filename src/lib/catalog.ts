@@ -11,18 +11,18 @@ export async function getSiteSettings() {
 
 export async function getHomepageCategories() {
   return db.category.findMany({
+    where: { parentId: null },
     orderBy: [{ groupNumber: 'asc' }, { order: 'asc' }],
     include: {
       _count: {
         select: { products: true },
       },
-      products: {
-        orderBy: [{ featured: 'desc' }, { order: 'asc' }, { createdAt: 'desc' }],
-        take: 3,
-        select: {
-          id: true,
-          name: true,
-          image: true,
+      children: {
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
+        include: {
+          _count: {
+            select: { products: true },
+          },
         },
       },
     },
@@ -50,6 +50,22 @@ export async function getCategoryBySlug(slug: string) {
   return db.category.findUnique({
     where: { slug },
     include: {
+      parent: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          groupNumber: true,
+        },
+      },
+      children: {
+        orderBy: [{ order: 'asc' }, { name: 'asc' }],
+        include: {
+          _count: {
+            select: { products: true },
+          },
+        },
+      },
       _count: {
         select: { products: true },
       },
@@ -58,8 +74,26 @@ export async function getCategoryBySlug(slug: string) {
 }
 
 export async function getCategoryProducts(categoryId: string) {
+  const category = await db.category.findUnique({
+    where: { id: categoryId },
+    select: {
+      id: true,
+      children: {
+        select: { id: true },
+      },
+    },
+  })
+
+  const categoryIds = category
+    ? [category.id, ...category.children.map((child) => child.id)]
+    : [categoryId]
+
   return db.product.findMany({
-    where: { categoryId },
+    where: {
+      categoryId: {
+        in: categoryIds,
+      },
+    },
     orderBy: [{ featured: 'desc' }, { order: 'asc' }, { createdAt: 'desc' }],
     include: {
       category: {
@@ -68,6 +102,13 @@ export async function getCategoryProducts(categoryId: string) {
           name: true,
           slug: true,
           groupNumber: true,
+          parent: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
         },
       },
     },
@@ -84,6 +125,13 @@ export async function getProductByRouteParam(param: string) {
           name: true,
           slug: true,
           groupNumber: true,
+          parent: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
         },
       },
     },
@@ -105,6 +153,13 @@ export async function getRelatedProducts(categoryId: string, excludeId: string) 
           name: true,
           slug: true,
           groupNumber: true,
+          parent: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
         },
       },
     },

@@ -30,7 +30,7 @@ export async function generateMetadata({
     title: `${category.name} Kategorisi`,
     description:
       category.description ||
-      `${category.name} kategorisindeki ev tekstili ürünlerini inceleyin ve WhatsApp ile hızlı fiyat alın.`,
+      `${category.name} kategorisindeki alt kategori ve ürünleri inceleyin, WhatsApp ile hızlı fiyat alın.`,
     alternates: {
       canonical: buildCategoryPath(category.slug),
     },
@@ -38,7 +38,7 @@ export async function generateMetadata({
       title: `${category.name} | ${SITE_NAME}`,
       description:
         category.description ||
-        `${category.name} kategorisindeki ürünleri inceleyin ve teklif alın.`,
+        `${category.name} kategorisindeki alt kategori ve ürünleri inceleyin, teklif alın.`,
       url: `${SITE_URL}${buildCategoryPath(category.slug)}`,
     },
   }
@@ -73,6 +73,7 @@ export default async function CategoryPage({
       <main>
         <CategoryProducts
           category={category}
+          childCategories={category.children}
           products={products}
           whatsappNumber={settings.whatsappNumber}
         />

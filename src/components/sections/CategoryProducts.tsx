@@ -20,6 +20,11 @@ interface Product {
     id: string
     name: string
     slug: string
+    parent?: {
+      id: string
+      name: string
+      slug: string
+    } | null
   }
 }
 
@@ -29,19 +34,36 @@ interface Category {
   name: string
   slug: string
   description: string | null
+  parent?: {
+    id: string
+    name: string
+    slug: string
+  } | null
+}
+
+interface ChildCategory {
+  id: string
+  name: string
+  slug: string
+  description: string | null
+  _count: { products: number }
 }
 
 interface CategoryProductsProps {
   category: Category
   products: Product[]
+  childCategories: ChildCategory[]
   whatsappNumber: string
 }
 
 export default function CategoryProducts({
   category,
   products,
+  childCategories,
   whatsappNumber,
 }: CategoryProductsProps) {
+  const hasChildren = childCategories.length > 0
+
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -54,6 +76,17 @@ export default function CategoryProducts({
             <Home className="h-4 w-4" />
             Ana Sayfa
           </Link>
+          {category.parent && (
+            <>
+              <ChevronRight className="h-4 w-4" />
+              <Link
+                href={buildCategoryPath(category.parent.slug)}
+                className="hover:text-[#a67c52] transition-colors"
+              >
+                {category.parent.name}
+              </Link>
+            </>
+          )}
           <ChevronRight className="h-4 w-4" />
           <span className="text-[#3d2c1e] font-medium">{category.name}</span>
         </motion.nav>
@@ -74,11 +107,38 @@ export default function CategoryProducts({
             <p className="text-[#8b7355] max-w-2xl ml-[52px]">{category.description}</p>
           )}
           <p className="text-sm text-[#8b7355] ml-[52px] mt-2">
-            {products.length} ürün bulundu
+            {hasChildren ? `${childCategories.length} alt kategori bulundu` : `${products.length} ürün bulundu`}
           </p>
         </motion.div>
 
-        {products.length === 0 ? (
+        {hasChildren ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {childCategories.map((child, index) => (
+              <motion.div
+                key={child.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.08, duration: 0.4 }}
+              >
+                <Card className="border-[#e8e0d4] hover:shadow-lg transition-all h-full">
+                  <CardContent className="p-6 h-full flex flex-col">
+                    <Badge className="self-start bg-[#a67c52]/10 text-[#a67c52] border-0 mb-4">
+                      Alt Kategori
+                    </Badge>
+                    <h2 className="text-xl font-semibold text-[#3d2c1e] mb-3">{child.name}</h2>
+                    <p className="text-sm text-[#8b7355] leading-relaxed mb-4 flex-1">
+                      {child.description || 'Bu alt kategorideki ürünleri inceleyin.'}
+                    </p>
+                    <p className="text-sm text-[#8b7355] mb-4">{child._count.products} ürün</p>
+                    <Button asChild className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white">
+                      <Link href={buildCategoryPath(child.slug)}>Alt kategoriyi aç</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        ) : products.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-[#8b7355] text-lg mb-4">Bu kategoride henüz ürün bulunmuyor.</p>
             <Button asChild className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white">
@@ -137,7 +197,7 @@ export default function CategoryProducts({
                         target="_blank"
                         rel="noopener noreferrer"
                         leadType="whatsapp"
-                        leadLabel={`category_${category.slug}_${product.id}`}
+                        leadLabel={`category_${product.category.slug}_${product.id}`}
                         className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white"
                         style={{ backgroundColor: '#25D366' }}
                       >

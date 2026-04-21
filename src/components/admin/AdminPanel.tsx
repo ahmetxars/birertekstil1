@@ -83,6 +83,9 @@ interface Category {
   name: string
   slug: string
   description?: string | null
+  parentId?: string | null
+  parent?: { id: string; name: string; slug: string } | null
+  children?: Array<{ id: string; name: string; slug: string; parentId?: string | null }>
   order?: number
   _count?: { products: number }
 }
@@ -104,6 +107,15 @@ interface ProductFormData {
   image: string
   categoryId: string
   featured: boolean
+  order: number
+}
+
+interface CategoryFormData {
+  name: string
+  slug: string
+  description: string
+  groupNumber: number
+  parentId: string
   order: number
 }
 
@@ -143,6 +155,15 @@ const emptyProductForm: ProductFormData = {
   image: '',
   categoryId: '',
   featured: false,
+  order: 0,
+}
+
+const emptyCategoryForm: CategoryFormData = {
+  name: '',
+  slug: '',
+  description: '',
+  groupNumber: 1,
+  parentId: 'none',
   order: 0,
 }
 
@@ -210,6 +231,13 @@ export default function AdminPanel() {
 
   /* ---- Delete state ---- */
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
+  const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<Category | null>(null)
+
+  /* ---- Category form state ---- */
+  const [categoryDialogOpen, setCategoryDialogOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+  const [categoryForm, setCategoryForm] = useState<CategoryFormData>(emptyCategoryForm)
+  const [categorySaving, setCategorySaving] = useState(false)
 
   /* ---- Content & Settings form state ---- */
   const [contentForm, setContentForm] = useState<ContentFormData>(defaultContentForm)
@@ -302,6 +330,39 @@ export default function AdminPanel() {
     setProductForm(emptyProductForm)
   }
 
+  const openAddCategory = (parentId?: string) => {
+    const parentCategory = parentId
+      ? categories.find((category) => category.id === parentId)
+      : null
+
+    setEditingCategory(null)
+    setCategoryForm({
+      ...emptyCategoryForm,
+      parentId: parentId || 'none',
+      groupNumber: parentCategory?.groupNumber || Math.max(1, categories.length + 1),
+    })
+    setCategoryDialogOpen(true)
+  }
+
+  const openEditCategory = (category: Category) => {
+    setEditingCategory(category)
+    setCategoryForm({
+      name: category.name,
+      slug: category.slug,
+      description: category.description || '',
+      groupNumber: category.groupNumber,
+      parentId: category.parentId || 'none',
+      order: category.order || 0,
+    })
+    setCategoryDialogOpen(true)
+  }
+
+  const closeCategoryDialog = () => {
+    setCategoryDialogOpen(false)
+    setEditingCategory(null)
+    setCategoryForm(emptyCategoryForm)
+  }
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -384,6 +445,83 @@ export default function AdminPanel() {
         setDeleteTarget(null)
       } else {
         toast.error('Silinirken hata oluştu')
+      }
+    } catch {
+      toast.error('Bağlantı hatası')
+    }
+  }
+
+  const handleCategorySave = async () => {
+    if (!categoryForm.name.trim()) {
+      toast.error('Kategori adı zorunludur')
+      return
+    }
+
+    if (categoryForm.parentId === 'none' && !categoryForm.groupNumber) {
+      toast.error('Ana kategori için grup numarası zorunludur')
+      return
+    }
+
+    setCategorySaving(true)
+    try {
+      const url = editingCategory
+        ? `/api/categories/${editingCategory.id}`
+        : '/api/categories'
+      const method = editingCategory ? 'PUT' : 'POST'
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: categoryForm.name,
+          slug: categoryForm.slug,
+          description: categoryForm.description,
+          groupNumber: categoryForm.groupNumber,
+          parentId: categoryForm.parentId === 'none' ? null : categoryForm.parentId,
+          order: categoryForm.order,
+        }),
+      })
+
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
+
+      if (res.ok) {
+        toast.success(editingCategory ? 'Kategori güncellendi' : 'Kategori oluşturuldu')
+        closeCategoryDialog()
+        fetchData()
+      } else {
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error || 'Kategori kaydedilirken hata oluştu')
+      }
+    } catch {
+      toast.error('Bağlantı hatası')
+    } finally {
+      setCategorySaving(false)
+    }
+  }
+
+  const handleCategoryDelete = async () => {
+    if (!deleteCategoryTarget) return
+
+    try {
+      const res = await fetch(`/api/categories/${deleteCategoryTarget.id}`, {
+        method: 'DELETE',
+      })
+
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
+
+      if (res.ok) {
+        toast.success('Kategori silindi')
+        setDeleteCategoryTarget(null)
+        fetchData()
+      } else {
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error || 'Kategori silinirken hata oluştu')
       }
     } catch {
       toast.error('Bağlantı hatası')
@@ -490,6 +628,35 @@ export default function AdminPanel() {
 
   const filteredProducts = products.filter((p) =>
     p.name.toLowerCase().includes(productSearch.toLowerCase())
+  )
+
+  const topLevelCategories = categories
+    .filter((category) => !category.parentId)
+    .sort((a, b) => {
+      if (a.groupNumber !== b.groupNumber) {
+        return a.groupNumber - b.groupNumber
+      }
+      return (a.order || 0) - (b.order || 0)
+    })
+
+  const flatCategoryRows = topLevelCategories.flatMap((parentCategory) => [
+    parentCategory,
+    ...categories
+      .filter((category) => category.parentId === parentCategory.id)
+      .sort((a, b) => (a.order || 0) - (b.order || 0)),
+  ])
+
+  const leafCategories = categories
+    .filter((category) => !category.children?.length)
+    .sort((a, b) => {
+      if (a.groupNumber !== b.groupNumber) {
+        return a.groupNumber - b.groupNumber
+      }
+      return a.name.localeCompare(b.name, 'tr')
+    })
+
+  const availableParentCategories = topLevelCategories.filter(
+    (category) => category.id !== editingCategory?.id
   )
 
   const totalProducts = products.length
@@ -1031,47 +1198,67 @@ export default function AdminPanel() {
 
   const renderCategories = () => (
     <div className="space-y-5">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-[#3d2c1e]">Kategoriler</h2>
-        <p className="text-sm text-[#8b7355] mt-1">
-          {totalCategories} kategori listeleniyor
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-[#3d2c1e]">Kategoriler</h2>
+          <p className="text-sm text-[#8b7355] mt-1">
+            {topLevelCategories.length} ana kategori, {totalCategories - topLevelCategories.length} alt kategori
+          </p>
+        </div>
+        <Button
+          onClick={() => openAddCategory()}
+          className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white shadow-sm w-full sm:w-auto"
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Yeni Kategori Ekle
+        </Button>
       </div>
 
-      {/* Categories Table */}
       <Card className="border-[#e8e0d4] bg-white shadow-sm overflow-hidden">
         {categories.length === 0 ? (
           <div className="p-12 text-center">
             <FolderOpen className="h-12 w-12 mx-auto text-[#e8e0d4] mb-4" />
             <p className="text-[#8b7355] font-medium">Henüz kategori bulunmuyor</p>
+            <Button
+              onClick={() => openAddCategory()}
+              variant="outline"
+              className="mt-4 border-[#a67c52] text-[#a67c52] hover:bg-[#a67c52]/5"
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              İlk Kategoriyi Ekle
+            </Button>
           </div>
         ) : (
           <>
-            {/* Desktop Table */}
             <div className="hidden md:block">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-[#e8e0d4] bg-[#f8f5f0]/80">
                     <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
-                      #
+                      Grup
                     </th>
                     <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
                       Kategori Adı
                     </th>
                     <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
-                      Slug
+                      Tip
                     </th>
                     <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
-                      Açıklama
+                      Üst Kategori
+                    </th>
+                    <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
+                      Slug
                     </th>
                     <th className="text-right p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
                       Ürün Sayısı
                     </th>
+                    <th className="text-right p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
+                      İşlemler
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f0ebe3]">
-                  {categories.map((cat, i) => (
+                  {flatCategoryRows.map((cat, i) => (
                     <motion.tr
                       key={cat.id}
                       initial={{ opacity: 0 }}
@@ -1086,23 +1273,75 @@ export default function AdminPanel() {
                       </td>
                       <td className="p-4">
                         <span className="font-medium text-[#3d2c1e] text-sm">
-                          {cat.name}
+                          {cat.parentId ? (
+                            <span className="inline-flex items-center gap-2">
+                              <span className="text-[#a67c52]">↳</span>
+                              {cat.name}
+                            </span>
+                          ) : (
+                            cat.name
+                          )}
                         </span>
                       </td>
                       <td className="p-4">
-                        <code className="text-xs text-[#8b7355] bg-[#f8f5f0] px-2 py-1 rounded">
-                          {cat.slug}
-                        </code>
+                        <Badge
+                          variant="outline"
+                          className="border-[#e8e0d4] text-[#8b7355] text-xs bg-[#f8f5f0]"
+                        >
+                          {cat.parentId ? 'Alt' : 'Ana'}
+                        </Badge>
                       </td>
                       <td className="p-4">
-                        <span className="text-sm text-[#8b7355] truncate max-w-[200px] block">
-                          {cat.description || '-'}
+                        <span className="text-sm text-[#8b7355]">
+                          {cat.parent?.name || '-'}
                         </span>
+                      </td>
+                      <td className="p-4">
+                        <div className="space-y-1">
+                          <code className="text-xs text-[#8b7355] bg-[#f8f5f0] px-2 py-1 rounded inline-flex">
+                            {cat.slug}
+                          </code>
+                          {cat.description ? (
+                            <p className="text-xs text-[#8b7355] max-w-[260px] truncate">
+                              {cat.description}
+                            </p>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="p-4 text-right">
                         <Badge className="bg-[#a67c52]/10 text-[#a67c52] border-0 text-xs">
                           {cat._count?.products ?? 0} ürün
                         </Badge>
+                      </td>
+                      <td className="p-4">
+                        <div className="flex items-center justify-end gap-1">
+                          {!cat.parentId && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => openAddCategory(cat.id)}
+                              className="h-8 w-8 text-[#8b7355] hover:text-[#a67c52] hover:bg-[#a67c52]/10"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => openEditCategory(cat)}
+                            className="h-8 w-8 text-[#8b7355] hover:text-[#a67c52] hover:bg-[#a67c52]/10"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setDeleteCategoryTarget(cat)}
+                            className="h-8 w-8 text-[#8b7355] hover:text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
                       </td>
                     </motion.tr>
                   ))}
@@ -1110,9 +1349,8 @@ export default function AdminPanel() {
               </table>
             </div>
 
-            {/* Mobile Cards */}
             <div className="md:hidden divide-y divide-[#f0ebe3]">
-              {categories.map((cat) => (
+              {flatCategoryRows.map((cat) => (
                 <div key={cat.id} className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 min-w-0">
@@ -1123,11 +1361,48 @@ export default function AdminPanel() {
                       </div>
                       <div className="min-w-0">
                         <p className="font-medium text-[#3d2c1e] text-sm">
+                          {cat.parentId ? '↳ ' : ''}
                           {cat.name}
                         </p>
                         <p className="text-xs text-[#8b7355] mt-0.5">
-                          {cat.description || 'Açıklama yok'}
+                          {cat.parentId ? `Alt kategori · ${cat.parent?.name}` : 'Ana kategori'}
                         </p>
+                        {cat.description ? (
+                          <p className="text-xs text-[#8b7355] mt-1 line-clamp-2">
+                            {cat.description}
+                          </p>
+                        ) : null}
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {!cat.parentId && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openAddCategory(cat.id)}
+                              className="h-8 border-[#e8e0d4] text-[#a67c52]"
+                            >
+                              <Plus className="h-3.5 w-3.5 mr-1" />
+                              Alt Kategori
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openEditCategory(cat)}
+                            className="h-8 border-[#e8e0d4] text-[#3d2c1e]"
+                          >
+                            <Pencil className="h-3.5 w-3.5 mr-1" />
+                            Düzenle
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setDeleteCategoryTarget(cat)}
+                            className="h-8 border-red-200 text-red-600 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5 mr-1" />
+                            Sil
+                          </Button>
+                        </div>
                       </div>
                     </div>
                     <Badge className="bg-[#a67c52]/10 text-[#a67c52] border-0 text-xs shrink-0">
@@ -1625,9 +1900,10 @@ export default function AdminPanel() {
                     <SelectValue placeholder="Kategori seçiniz" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((cat) => (
+                    {leafCategories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
-                        {cat.groupNumber}. {cat.name}
+                        {cat.groupNumber}. {cat.parent ? `${cat.parent.name} / ` : ''}
+                        {cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1779,6 +2055,199 @@ export default function AdminPanel() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ============================================================ */}
+      {/*  Category Add/Edit Dialog                                      */}
+      {/* ============================================================ */}
+      <Dialog open={categoryDialogOpen} onOpenChange={(open) => !open && closeCategoryDialog()}>
+        <DialogContent className="sm:max-w-xl bg-white">
+          <DialogHeader>
+            <DialogTitle className="text-[#3d2c1e]">
+              {editingCategory ? 'Kategori Düzenle' : 'Yeni Kategori Ekle'}
+            </DialogTitle>
+            <DialogDescription className="text-[#8b7355]">
+              Ana kategori veya alt kategori oluşturup site yapısını düzenleyin.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-5 mt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category-name" className="text-[#3d2c1e]">
+                  Kategori Adı <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="category-name"
+                  value={categoryForm.name}
+                  onChange={(e) =>
+                    setCategoryForm({ ...categoryForm, name: e.target.value })
+                  }
+                  placeholder="Kategori adını giriniz"
+                  className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category-slug" className="text-[#3d2c1e]">
+                  Slug
+                </Label>
+                <Input
+                  id="category-slug"
+                  value={categoryForm.slug}
+                  onChange={(e) =>
+                    setCategoryForm({ ...categoryForm, slug: e.target.value })
+                  }
+                  placeholder="otomatik oluşur"
+                  className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[#3d2c1e]">Üst Kategori</Label>
+                <Select
+                  value={categoryForm.parentId}
+                  onValueChange={(value) => {
+                    const selectedParent = topLevelCategories.find((category) => category.id === value)
+                    setCategoryForm((prev) => ({
+                      ...prev,
+                      parentId: value,
+                      groupNumber:
+                        value === 'none'
+                          ? prev.groupNumber || Math.max(1, categories.length + 1)
+                          : selectedParent?.groupNumber || prev.groupNumber,
+                    }))
+                  }}
+                >
+                  <SelectTrigger className="border-[#e8e0d4] focus:ring-[#a67c52]/20">
+                    <SelectValue placeholder="Üst kategori seçiniz" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Ana kategori</SelectItem>
+                    {availableParentCategories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        {category.groupNumber}. {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category-group" className="text-[#3d2c1e]">
+                  Grup Numarası
+                </Label>
+                <Input
+                  id="category-group"
+                  type="number"
+                  value={categoryForm.groupNumber}
+                  disabled={categoryForm.parentId !== 'none'}
+                  onChange={(e) =>
+                    setCategoryForm({
+                      ...categoryForm,
+                      groupNumber: parseInt(e.target.value, 10) || 0,
+                    })
+                  }
+                  className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20 disabled:bg-[#f8f5f0]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_120px] gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category-description" className="text-[#3d2c1e]">
+                  Açıklama
+                </Label>
+                <Textarea
+                  id="category-description"
+                  value={categoryForm.description}
+                  onChange={(e) =>
+                    setCategoryForm({ ...categoryForm, description: e.target.value })
+                  }
+                  placeholder="Kategori için kısa açıklama"
+                  rows={4}
+                  className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20 resize-none"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="category-order" className="text-[#3d2c1e]">
+                  Sıra
+                </Label>
+                <Input
+                  id="category-order"
+                  type="number"
+                  value={categoryForm.order}
+                  onChange={(e) =>
+                    setCategoryForm({
+                      ...categoryForm,
+                      order: parseInt(e.target.value, 10) || 0,
+                    })
+                  }
+                  className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
+                />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="mt-4">
+            <Button
+              variant="outline"
+              onClick={closeCategoryDialog}
+              className="border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3]"
+            >
+              İptal
+            </Button>
+            <Button
+              onClick={handleCategorySave}
+              disabled={categorySaving}
+              className="bg-[#a67c52] hover:bg-[#a67c52]/90 text-white min-w-[120px]"
+            >
+              {categorySaving ? (
+                <span className="flex items-center gap-2">
+                  <span className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Kaydediliyor...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2">
+                  <Save className="h-4 w-4" />
+                  {editingCategory ? 'Güncelle' : 'Kaydet'}
+                </span>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ============================================================ */}
+      {/*  Category Delete Confirmation                                  */}
+      {/* ============================================================ */}
+      <AlertDialog
+        open={!!deleteCategoryTarget}
+        onOpenChange={(open) => !open && setDeleteCategoryTarget(null)}
+      >
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[#3d2c1e]">Kategoriyi Sil</AlertDialogTitle>
+            <AlertDialogDescription className="text-[#8b7355]">
+              <strong className="text-[#3d2c1e]">{deleteCategoryTarget?.name}</strong> kategorisini
+              silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3]">
+              İptal
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCategoryDelete}
+              className="bg-red-600 hover:bg-red-700 text-white border-0"
+            >
+              Evet, Sil
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ============================================================ */}
       {/*  Delete Confirmation Dialog                                     */}

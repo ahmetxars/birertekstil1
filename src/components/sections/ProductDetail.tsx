@@ -21,6 +21,11 @@ interface Product {
     id: string
     name: string
     slug: string
+    parent?: {
+      id: string
+      name: string
+      slug: string
+    } | null
   }
 }
 
@@ -47,6 +52,17 @@ export default function ProductDetail({
             <Home className="h-4 w-4" />
             Ana Sayfa
           </Link>
+          {product.category.parent && (
+            <>
+              <ChevronRight className="h-4 w-4" />
+              <Link
+                href={buildCategoryPath(product.category.parent.slug)}
+                className="hover:text-[#a67c52] transition-colors"
+              >
+                {product.category.parent.name}
+              </Link>
+            </>
+          )}
           <ChevronRight className="h-4 w-4" />
           <Link
             href={buildCategoryPath(product.category.slug)}
