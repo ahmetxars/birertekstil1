@@ -3,12 +3,13 @@
 import TrackedExternalLink from '@/components/site/TrackedExternalLink'
 
 interface WhatsAppFloatProps {
-  whatsappNumber: string
+  whatsappNumber?: string
 }
 
 export default function WhatsAppFloat({ whatsappNumber }: WhatsAppFloatProps) {
+  const safeWhatsappNumber = whatsappNumber ?? '+905332423665'
   const message = 'Merhaba, bilgi almak istiyorum.'
-  const href = `https://wa.me/${whatsappNumber.replace(/[^\d]/g, '')}?text=${encodeURIComponent(message)}`
+  const href = `https://wa.me/${safeWhatsappNumber.replace(/[^\d]/g, '')}?text=${encodeURIComponent(message)}`
 
   return (
     <TrackedExternalLink

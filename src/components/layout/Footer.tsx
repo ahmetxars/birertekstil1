@@ -5,7 +5,7 @@ import TrackedExternalLink from '@/components/site/TrackedExternalLink'
 import { buildPhoneHref } from '@/lib/site'
 
 interface FooterProps {
-  settings: {
+  settings?: {
     whatsappNumber: string
     phone: string
     address: string
@@ -15,6 +15,14 @@ interface FooterProps {
 }
 
 export default function Footer({ settings }: FooterProps) {
+  const safeSettings = settings ?? {
+    whatsappNumber: '+905332423665',
+    phone: '+90 533 242 36 65',
+    address: 'Istanbul, Türkiye',
+    email: 'info@birertekstil.com',
+    instagramUrl: '',
+  }
+
   return (
     <footer className="bg-[#3d2c1e] text-[#e8e0d4] mt-auto">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
@@ -53,16 +61,16 @@ export default function Footer({ settings }: FooterProps) {
             <h3 className="text-lg font-semibold text-[#a67c52] mb-4">İletişim Bilgileri</h3>
             <div className="flex flex-col gap-3">
               <TrackedExternalLink
-                href={buildPhoneHref(settings.phone)}
+                href={buildPhoneHref(safeSettings.phone)}
                 leadType="phone"
                 leadLabel="footer_phone"
                 className="flex items-center gap-2 text-sm text-[#c4b49a] hover:text-[#25D366] transition-colors"
               >
                 <Phone className="h-4 w-4" />
-                {settings.phone}
+                {safeSettings.phone}
               </TrackedExternalLink>
               <TrackedExternalLink
-                href={`https://wa.me/${settings.whatsappNumber.replace(/[^\d]/g, '')}?text=${encodeURIComponent('Merhaba, ürünler hakkında bilgi almak istiyorum.')}`}
+                href={`https://wa.me/${safeSettings.whatsappNumber.replace(/[^\d]/g, '')}?text=${encodeURIComponent('Merhaba, ürünler hakkında bilgi almak istiyorum.')}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 leadType="whatsapp"
@@ -74,18 +82,18 @@ export default function Footer({ settings }: FooterProps) {
               </TrackedExternalLink>
               <div className="flex items-start gap-2 text-sm text-[#c4b49a]">
                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
-                <span>{settings.address}</span>
+                <span>{safeSettings.address}</span>
               </div>
               <a
-                href={`mailto:${settings.email}`}
+                href={`mailto:${safeSettings.email}`}
                 className="flex items-center gap-2 text-sm text-[#c4b49a] hover:text-[#a67c52] transition-colors"
               >
                 <Mail className="h-4 w-4" />
-                {settings.email}
+                {safeSettings.email}
               </a>
-              {settings.instagramUrl && (
+              {safeSettings.instagramUrl && (
                 <a
-                  href={settings.instagramUrl}
+                  href={safeSettings.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 text-sm text-[#c4b49a] hover:text-[#a67c52] transition-colors"
