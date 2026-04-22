@@ -16,6 +16,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Dosya bulunamadı' }, { status: 400 })
     }
 
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    if (!allowedTypes.includes(file.type)) {
+      return NextResponse.json({ error: 'Sadece JPG, PNG, WebP veya GIF yükleyebilirsiniz' }, { status: 400 })
+    }
+
+    const maxSize = 10 * 1024 * 1024
+    if (file.size > maxSize) {
+      return NextResponse.json({ error: 'Dosya boyutu 10 MB\'ı geçemez' }, { status: 400 })
+    }
+
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
 
