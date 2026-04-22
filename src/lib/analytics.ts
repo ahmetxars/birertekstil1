@@ -7,7 +7,7 @@ declare global {
   }
 }
 
-export function trackLeadClick(type: 'whatsapp' | 'phone', label: string) {
+export function trackLeadClick(type: 'whatsapp' | 'phone' | 'location', label: string) {
   if (typeof window === 'undefined') return
 
   const payload = {

@@ -20,6 +20,7 @@ export async function PUT(
     const body = await request.json()
     const name = String(body.name || '').trim()
     const description = String(body.description || '').trim() || null
+    const image = String(body.image || '').trim()
     const requestedSlug = String(body.slug || '').trim()
     const parentId = body.parentId || null
     const order = Number(body.order) || 0
@@ -61,6 +62,7 @@ export async function PUT(
         name,
         slug: slugify(requestedSlug || name),
         description,
+        image,
         parentId,
         order,
         groupNumber,

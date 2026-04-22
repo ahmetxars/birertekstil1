@@ -16,6 +16,7 @@ interface Product {
   description: string | null
   image: string
   featured: boolean
+  inStock: boolean
   category: {
     id: string
     name: string
@@ -173,6 +174,11 @@ export default function CategoryProducts({
                       <Badge className="absolute top-3 left-3 bg-[#a67c52] text-white">
                         Öne Çıkan
                       </Badge>
+                    )}
+                    {!product.inStock && (
+                      <div className="absolute inset-x-0 bottom-0 bg-red-600 px-3 py-2 text-center text-xs font-bold tracking-[0.2em] text-white">
+                        STOK YOK
+                      </div>
                     )}
                   </Link>
 

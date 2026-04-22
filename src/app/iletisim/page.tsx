@@ -4,11 +4,17 @@ import Footer from '@/components/layout/Footer'
 import TrackedExternalLink from '@/components/site/TrackedExternalLink'
 import StructuredData from '@/components/site/StructuredData'
 import { getSiteSettings } from '@/lib/catalog'
-import { SITE_NAME, SITE_URL, buildPhoneHref } from '@/lib/site'
+import {
+  GOOGLE_MAPS_EMBED_URL,
+  GOOGLE_MAPS_URL,
+  SITE_NAME,
+  SITE_URL,
+  buildPhoneHref,
+} from '@/lib/site'
 
 export const metadata: Metadata = {
   title: 'İletişim',
-  description: 'Birer Tekstil ile WhatsApp, telefon veya e-posta üzerinden iletişime geçin.',
+  description: 'Birer Tekstil ile WhatsApp, telefon veya konum üzerinden iletişime geçin.',
   alternates: {
     canonical: '/iletisim',
   },
@@ -72,15 +78,29 @@ export default async function ContactPage() {
               <span className="font-semibold text-[#a67c52]">Hemen ara</span>
             </TrackedExternalLink>
 
-            <div className="rounded-3xl border border-[#e8e0d4] bg-white p-8 shadow-sm">
-              <p className="text-sm uppercase tracking-[0.2em] text-[#a67c52] mb-3">Firma Bilgisi</p>
-              <h2 className="text-2xl font-bold text-[#3d2c1e] mb-3">Birer Tekstil</h2>
-              <div className="space-y-3 text-[#8b7355]">
-                <p>{settings.address}</p>
-                <a href={`mailto:${settings.email}`} className="block hover:text-[#a67c52] transition-colors">
-                  {settings.email}
-                </a>
+            <div className="rounded-3xl border border-[#e8e0d4] bg-white p-4 shadow-sm">
+              <p className="px-4 pt-4 text-sm uppercase tracking-[0.2em] text-[#a67c52] mb-3">
+                Konum
+              </p>
+              <div className="overflow-hidden rounded-2xl border border-[#f3ece3]">
+                <iframe
+                  title="Birer Tekstil Konumu"
+                  src={GOOGLE_MAPS_EMBED_URL}
+                  className="h-[320px] w-full"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
               </div>
+              <TrackedExternalLink
+                href={GOOGLE_MAPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                leadType="location"
+                leadLabel="contact_page_location"
+                className="block px-4 pb-4 pt-4 font-semibold text-[#a67c52] hover:text-[#8b5e34] transition-colors"
+              >
+                Google Maps'te ac
+              </TrackedExternalLink>
             </div>
           </div>
         </div>

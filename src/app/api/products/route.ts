@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { name, description, image, categoryId, featured, order } = body
+    const { name, description, image, categoryId, featured, inStock, order } = body
 
     if (!name || !categoryId) {
       return NextResponse.json({ error: 'Ad ve kategori alanları zorunludur' }, { status: 400 })
@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
         image,
         categoryId,
         featured: featured || false,
+        inStock: inStock ?? true,
         order: order || 0,
       },
       include: {

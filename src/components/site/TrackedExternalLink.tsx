@@ -5,7 +5,7 @@ import { trackLeadClick } from '@/lib/analytics'
 
 interface TrackedExternalLinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   children: ReactNode
-  leadType?: 'whatsapp' | 'phone'
+  leadType?: 'whatsapp' | 'phone' | 'location'
   leadLabel?: string
 }
 

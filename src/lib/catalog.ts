@@ -1,7 +1,10 @@
 import { db } from '@/lib/db'
 import { extractProductIdFromParam } from '@/lib/site'
+import { unstable_noStore as noStore } from 'next/cache'
 
 export async function getSiteSettings() {
+  noStore()
+
   return db.siteSettings.upsert({
     where: { id: 'main' },
     update: {},

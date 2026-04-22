@@ -1,11 +1,17 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowRight } from 'lucide-react'
 import Image from 'next/image'
 import { buildCategoryPath } from '@/lib/site'
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion'
 
 interface HomeCategory {
   id: string
@@ -13,6 +19,7 @@ interface HomeCategory {
   name: string
   slug: string
   description: string | null
+  image: string
   _count: { products: number }
   children: Array<{
     id: string
@@ -59,15 +66,41 @@ const categoryBgImages: Record<number, string[]> = {
 
 export default function CategoriesSection({ categories }: { categories: HomeCategory[] }) {
   const [activeCategoryId, setActiveCategoryId] = useState<string | null>(null)
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
+  const sectionRef = useRef<HTMLElement | null>(null)
 
   const filters = [{ label: 'Tümü', id: null }, ...categories.map((category) => ({ label: category.name, id: category.id }))]
+  const activeFilterLabel =
+    filters.find((filter) => filter.id === activeCategoryId)?.label ?? 'Tümü'
+  const mobileAccordionValue = mobileFilterOpen ? 'category-filters' : ''
 
   const filteredCategories = activeCategoryId
     ? categories.filter((category) => category.id === activeCategoryId)
     : categories
 
+  useEffect(() => {
+    const sectionElement = sectionRef.current
+
+    if (!sectionElement) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) {
+          setMobileFilterOpen(false)
+        }
+      },
+      {
+        threshold: 0.15,
+      }
+    )
+
+    observer.observe(sectionElement)
+
+    return () => observer.disconnect()
+  }, [])
+
   return (
-    <section id="categories" className="py-16 px-4 sm:px-6 lg:px-8">
+    <section ref={sectionRef} id="categories" className="py-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -85,7 +118,48 @@ export default function CategoriesSection({ categories }: { categories: HomeCate
           </p>
         </motion.div>
 
-        <div className="flex gap-2 overflow-x-auto pb-4 mb-10 scrollbar-hide justify-center flex-wrap">
+        <div className="mb-6 sm:hidden">
+          <Accordion
+            type="single"
+            collapsible
+            value={mobileAccordionValue}
+            onValueChange={(value) => setMobileFilterOpen(value === 'category-filters')}
+            className="rounded-2xl border border-[#e8e0d4] bg-white shadow-sm"
+          >
+            <AccordionItem value="category-filters" className="border-b-0">
+              <AccordionTrigger className="px-5 py-4 text-[#3d2c1e] hover:no-underline">
+                <div className="flex flex-col items-start">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a67c52]">
+                    Kategori Seç
+                  </span>
+                  <span className="mt-1 text-base font-semibold">{activeFilterLabel}</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-3 pb-3">
+                <div className="flex flex-col gap-2">
+                  {filters.map((group) => (
+                    <button
+                      key={group.id ?? 'all'}
+                      onClick={() => {
+                        setActiveCategoryId(group.id)
+                        setMobileFilterOpen(false)
+                      }}
+                      className={`w-full rounded-2xl px-4 py-3 text-left text-sm font-medium transition-all ${
+                        activeCategoryId === group.id
+                          ? 'bg-[#a67c52] text-white shadow-sm'
+                          : 'bg-[#f8f5f0] text-[#3d2c1e] hover:bg-[#f0ebe3]'
+                      }`}
+                    >
+                      {group.label}
+                    </button>
+                  ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+
+        <div className="hidden gap-2 overflow-x-auto pb-4 mb-10 scrollbar-hide justify-center flex-wrap sm:flex">
           {filters.map((group) => (
             <button
               key={group.id ?? 'all'}
@@ -112,6 +186,7 @@ export default function CategoriesSection({ categories }: { categories: HomeCate
           >
             {filteredCategories.map((category, index) => {
               const bgImages = categoryBgImages[category.groupNumber] || categoryBgImages[1]
+              const primaryImage = category.image || bgImages[0]
 
               return (
                 <motion.div
@@ -127,7 +202,7 @@ export default function CategoriesSection({ categories }: { categories: HomeCate
                   >
                     <div className="absolute inset-0">
                       <Image
-                        src={bgImages[0]}
+                        src={primaryImage}
                         alt=""
                         fill
                         className="object-cover transition-transform duration-700 group-hover:scale-110"

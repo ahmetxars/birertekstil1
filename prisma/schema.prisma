@@ -3,33 +3,65 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
 model Category {
-  id          String   @id @default(cuid())
-  groupNumber Int      @unique
+  id          String     @id @default(cuid())
+  groupNumber Int
   name        String
-  slug        String   @unique
+  slug        String     @unique
   description String?
-  order       Int      @default(0)
+  image       String     @default("")
+  order       Int        @default(0)
+  parentId    String?
+  parent      Category?  @relation("SubCategories", fields: [parentId], references: [id], onDelete: SetNull)
+  children    Category[] @relation("SubCategories")
   products    Product[]
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  @@index([parentId])
+}
+
+model Brand {
+  id       String    @id @default(cuid())
+  name     String    @unique
+  slug     String    @unique
+  products Product[]
 }
 
 model Product {
-  id          String   @id @default(cuid())
+  id          String        @id @default(cuid())
   name        String
   description String?
-  image       String
+  image       String        @default("")
+  images      String        @default("[]")
   categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  featured    Boolean  @default(false)
-  order       Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  brandId     String?
+  brand       Brand?        @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  featured    Boolean       @default(false)
+  inStock     Boolean       @default(true)
+  order       Int           @default(0)
+  viewCount   Int           @default(0)
+  views       ProductView[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([brandId])
+}
+
+model ProductView {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ip        String   @default("")
+  viewedAt  DateTime @default(now())
+
+  @@index([productId])
+  @@index([viewedAt])
 }
 
 model ContactMessage {
@@ -37,5 +69,18 @@ model ContactMessage {
   name      String
   phone     String
   message   String
+  read      Boolean  @default(false)
   createdAt DateTime @default(now())
+}
+
+model SiteSettings {
+  id             String @id @default("main")
+  whatsappNumber String @default("+905332423665")
+  phone          String @default("+90 533 242 36 65")
+  address        String @default("İstanbul, Türkiye")
+  email          String @default("")
+  instagramUrl   String @default("")
+  heroTitle      String @default("İstanbul'da Üreticiden Kaliteli Ev Tekstili Ürünleri")
+  heroSubtitle   String @default("Birer Tekstil İstanbul")
+  aboutText      String @default("Birer Tekstil olarak İstanbul'da 20 yılı aşkın süredir ev tekstili sektöründe faaliyet göstermekteyiz.")
 }

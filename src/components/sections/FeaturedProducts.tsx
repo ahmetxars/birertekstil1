@@ -16,6 +16,7 @@ interface FeaturedProduct {
   description: string | null
   image: string
   featured: boolean
+  inStock: boolean
   category: {
     id: string
     name: string
@@ -108,6 +109,11 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
                         <div className="w-16 h-16 mx-auto rounded-full bg-[#a67c52]/10 flex items-center justify-center mb-2" />
                         <span className="text-xs text-[#8b7355]">Ürün Görseli</span>
                       </div>
+                    </div>
+                  )}
+                  {!product.inStock && (
+                    <div className="absolute inset-x-0 bottom-0 bg-red-600 px-3 py-2 text-center text-xs font-bold tracking-[0.2em] text-white">
+                      STOK YOK
                     </div>
                   )}
                 </Link>

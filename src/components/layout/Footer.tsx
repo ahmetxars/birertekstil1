@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Instagram, Mail, MapPin, Phone } from 'lucide-react'
 import { Separator } from '@/components/ui/separator'
 import TrackedExternalLink from '@/components/site/TrackedExternalLink'
-import { buildPhoneHref } from '@/lib/site'
+import { GOOGLE_MAPS_URL, buildPhoneHref } from '@/lib/site'
 
 interface FooterProps {
   settings: {
@@ -72,17 +72,17 @@ export default function Footer({ settings }: FooterProps) {
                 <Mail className="h-4 w-4" />
                 WhatsApp ile fiyat sor
               </TrackedExternalLink>
-              <div className="flex items-start gap-2 text-sm text-[#c4b49a]">
+              <TrackedExternalLink
+                href={GOOGLE_MAPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                leadType="location"
+                leadLabel="footer_location"
+                className="flex items-start gap-2 text-sm text-[#c4b49a] hover:text-[#a67c52] transition-colors"
+              >
                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{settings.address}</span>
-              </div>
-              <a
-                href={`mailto:${settings.email}`}
-                className="flex items-center gap-2 text-sm text-[#c4b49a] hover:text-[#a67c52] transition-colors"
-              >
-                <Mail className="h-4 w-4" />
-                {settings.email}
-              </a>
+              </TrackedExternalLink>
               {settings.instagramUrl && (
                 <a
                   href={settings.instagramUrl}

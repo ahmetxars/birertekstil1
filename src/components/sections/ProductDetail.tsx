@@ -17,6 +17,7 @@ interface Product {
   description: string | null
   image: string
   featured: boolean
+  inStock: boolean
   category: {
     id: string
     name: string
@@ -102,6 +103,11 @@ export default function ProductDetail({
                   <span className="text-sm text-[#8b7355]">Ürün Görseli</span>
                 </div>
               )}
+              {!product.inStock && (
+                <div className="absolute inset-x-0 bottom-0 bg-red-600 px-4 py-3 text-center text-sm font-bold tracking-[0.2em] text-white">
+                  STOK YOK
+                </div>
+              )}
             </div>
           </motion.div>
 
@@ -124,6 +130,12 @@ export default function ProductDetail({
                 <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
                 <span className="text-sm text-amber-600 font-medium">Öne Çıkan Ürün</span>
               </div>
+            )}
+
+            {!product.inStock && (
+              <Badge className="mb-4 self-start border-0 bg-red-600 px-3 py-1 text-white">
+                STOK YOK
+              </Badge>
             )}
 
             <Separator className="my-4 bg-[#e8e0d4]" />
@@ -179,6 +191,11 @@ export default function ProductDetail({
                       ) : (
                         <div className="absolute inset-0 flex items-center justify-center">
                           <span className="text-xs text-[#8b7355]">Görsel yok</span>
+                        </div>
+                      )}
+                      {!relatedProduct.inStock && (
+                        <div className="absolute inset-x-0 bottom-0 bg-red-600 px-2 py-1.5 text-center text-[10px] font-bold tracking-[0.18em] text-white">
+                          STOK YOK
                         </div>
                       )}
                     </div>

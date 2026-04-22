@@ -42,7 +42,7 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { name, description, image, categoryId, featured, order } = body
+    const { name, description, image, categoryId, featured, inStock, order } = body
 
     const product = await db.product.update({
       where: { id },
@@ -52,6 +52,7 @@ export async function PUT(
         ...(image !== undefined && { image }),
         ...(categoryId !== undefined && { categoryId }),
         ...(featured !== undefined && { featured }),
+        ...(inStock !== undefined && { inStock }),
         ...(order !== undefined && { order }),
       },
       include: {

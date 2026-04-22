@@ -83,6 +83,7 @@ interface Category {
   name: string
   slug: string
   description?: string | null
+  image: string
   parentId?: string | null
   parent?: { id: string; name: string; slug: string } | null
   children?: Array<{ id: string; name: string; slug: string; parentId?: string | null }>
@@ -97,6 +98,7 @@ interface Product {
   image: string
   categoryId: string
   featured: boolean
+  inStock: boolean
   order: number
   category: { id: string; groupNumber: number; name: string; slug: string }
 }
@@ -107,6 +109,7 @@ interface ProductFormData {
   image: string
   categoryId: string
   featured: boolean
+  inStock: boolean
   order: number
 }
 
@@ -114,6 +117,7 @@ interface CategoryFormData {
   name: string
   slug: string
   description: string
+  image: string
   groupNumber: number
   parentId: string
   order: number
@@ -155,6 +159,7 @@ const emptyProductForm: ProductFormData = {
   image: '',
   categoryId: '',
   featured: false,
+  inStock: true,
   order: 0,
 }
 
@@ -162,6 +167,7 @@ const emptyCategoryForm: CategoryFormData = {
   name: '',
   slug: '',
   description: '',
+  image: '',
   groupNumber: 1,
   parentId: 'none',
   order: 0,
@@ -227,7 +233,9 @@ export default function AdminPanel() {
   const [productForm, setProductForm] = useState<ProductFormData>(emptyProductForm)
   const [productSaving, setProductSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
+  const [categoryUploading, setCategoryUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const categoryFileInputRef = useRef<HTMLInputElement>(null)
 
   /* ---- Delete state ---- */
   const [deleteTarget, setDeleteTarget] = useState<Product | null>(null)
@@ -319,6 +327,7 @@ export default function AdminPanel() {
       image: product.image,
       categoryId: product.categoryId,
       featured: product.featured,
+      inStock: product.inStock,
       order: product.order,
     })
     setProductDialogOpen(true)
@@ -350,6 +359,7 @@ export default function AdminPanel() {
       name: category.name,
       slug: category.slug,
       description: category.description || '',
+      image: category.image || '',
       groupNumber: category.groupNumber,
       parentId: category.parentId || 'none',
       order: category.order || 0,
@@ -388,6 +398,34 @@ export default function AdminPanel() {
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
+    }
+  }
+
+  const handleCategoryImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setCategoryUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+      const res = await fetch('/api/upload', { method: 'POST', body: formData })
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
+      const data = await res.json()
+      if (data.url) {
+        setCategoryForm((prev) => ({ ...prev, image: data.url }))
+        toast.success('Kategori görseli başarıyla yüklendi')
+      } else {
+        toast.error('Kategori görseli yüklenirken hata oluştu')
+      }
+    } catch {
+      toast.error('Dosya yüklenirken hata oluştu')
+    } finally {
+      setCategoryUploading(false)
+      if (categoryFileInputRef.current) categoryFileInputRef.current.value = ''
     }
   }
 
@@ -476,6 +514,7 @@ export default function AdminPanel() {
           name: categoryForm.name,
           slug: categoryForm.slug,
           description: categoryForm.description,
+          image: categoryForm.image,
           groupNumber: categoryForm.groupNumber,
           parentId: categoryForm.parentId === 'none' ? null : categoryForm.parentId,
           order: categoryForm.order,
@@ -553,6 +592,30 @@ export default function AdminPanel() {
       }
     } catch {
       toast.error('Güncellenirken hata oluştu')
+    }
+  }
+
+  const handleToggleStock = async (product: Product) => {
+    try {
+      const res = await fetch(`/api/products/${product.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ inStock: !product.inStock }),
+      })
+      if (res.status === 401) {
+        router.push('/giris?next=/yonetim')
+        return
+      }
+      if (res.ok) {
+        toast.success(product.inStock ? 'Ürün stok dışı olarak işaretlendi' : 'Ürün yeniden stokta')
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === product.id ? { ...p, inStock: !p.inStock } : p
+          )
+        )
+      }
+    } catch {
+      toast.error('Stok durumu güncellenirken hata oluştu')
     }
   }
 
@@ -929,6 +992,11 @@ export default function AdminPanel() {
                     {product.featured && (
                       <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-500 shrink-0" />
                     )}
+                    {!product.inStock && (
+                      <Badge className="shrink-0 border-0 bg-red-600 text-white text-[10px]">
+                        Stok Yok
+                      </Badge>
+                    )}
                   </div>
                 ))}
               </div>
@@ -1068,24 +1136,37 @@ export default function AdminPanel() {
                         </Badge>
                       </td>
                       <td className="p-4">
-                        <button
-                          onClick={() => handleToggleFeatured(product)}
-                          className="inline-flex items-center gap-1.5"
-                        >
-                          {product.featured ? (
-                            <Badge className="bg-amber-100 text-amber-700 text-xs border-0 hover:bg-amber-200 transition-colors">
-                              <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" />
-                              Öne Çıkan
-                            </Badge>
-                          ) : (
-                            <Badge
-                              variant="outline"
-                              className="border-[#e8e0d4] text-[#8b7355] text-xs hover:border-[#a67c52] transition-colors cursor-pointer"
-                            >
-                              Normal
-                            </Badge>
-                          )}
-                        </button>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            onClick={() => handleToggleFeatured(product)}
+                            className="inline-flex items-center gap-1.5"
+                          >
+                            {product.featured ? (
+                              <Badge className="bg-amber-100 text-amber-700 text-xs border-0 hover:bg-amber-200 transition-colors">
+                                <Star className="h-3 w-3 mr-1 fill-amber-500 text-amber-500" />
+                                Öne Çıkan
+                              </Badge>
+                            ) : (
+                              <Badge
+                                variant="outline"
+                                className="border-[#e8e0d4] text-[#8b7355] text-xs hover:border-[#a67c52] transition-colors cursor-pointer"
+                              >
+                                Normal
+                              </Badge>
+                            )}
+                          </button>
+                          <button onClick={() => handleToggleStock(product)}>
+                            {product.inStock ? (
+                              <Badge className="border-0 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition-colors">
+                                Stokta
+                              </Badge>
+                            ) : (
+                              <Badge className="border-0 bg-red-600 text-white hover:bg-red-700 transition-colors">
+                                Stok Yok
+                              </Badge>
+                            )}
+                          </button>
+                        </div>
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-1">
@@ -1159,6 +1240,17 @@ export default function AdminPanel() {
                               className="text-xs border-[#e8e0d4] text-[#8b7355]"
                             >
                               Normal
+                            </Badge>
+                          )}
+                        </button>
+                        <button onClick={() => handleToggleStock(product)}>
+                          {product.inStock ? (
+                            <Badge className="border-0 bg-emerald-100 text-emerald-700 text-xs">
+                              Stokta
+                            </Badge>
+                          ) : (
+                            <Badge className="border-0 bg-red-600 text-white text-xs">
+                              Stok Yok
                             </Badge>
                           )}
                         </button>
@@ -1984,7 +2076,7 @@ export default function AdminPanel() {
               </div>
             </div>
 
-            {/* Featured & Order */}
+            {/* Status & Order */}
             <div className="flex flex-wrap items-center gap-6">
               <div className="flex items-center gap-2.5">
                 <Checkbox
@@ -2004,6 +2096,26 @@ export default function AdminPanel() {
                 >
                   <Star className="h-4 w-4 text-amber-500" />
                   Öne Çıkan Ürün
+                </Label>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <Checkbox
+                  id="inStock"
+                  checked={productForm.inStock}
+                  onCheckedChange={(checked) =>
+                    setProductForm({
+                      ...productForm,
+                      inStock: checked === true,
+                    })
+                  }
+                  className="border-[#e8e0d4] data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                />
+                <Label
+                  htmlFor="inStock"
+                  className="cursor-pointer text-[#3d2c1e]"
+                >
+                  Ürün stokta
                 </Label>
               </div>
 
@@ -2187,6 +2299,61 @@ export default function AdminPanel() {
                   }
                   className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
                 />
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-[#3d2c1e]">Kategori Görseli</Label>
+              {categoryForm.image ? (
+                <div className="relative w-full max-w-[240px] h-40 rounded-xl overflow-hidden border border-[#e8e0d4] group">
+                  <Image
+                    src={categoryForm.image}
+                    alt="Kategori görseli"
+                    fill
+                    className="object-cover"
+                    sizes="240px"
+                  />
+                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                    <button
+                      onClick={() =>
+                        setCategoryForm({ ...categoryForm, image: '' })
+                      }
+                      className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full max-w-[240px] h-40 rounded-xl border-2 border-dashed border-[#e8e0d4] flex items-center justify-center hover:border-[#a67c52]/40 transition-colors">
+                  <div className="text-center">
+                    <ImageIcon className="h-10 w-10 mx-auto text-[#c4b49a] mb-2" />
+                    <p className="text-xs text-[#8b7355]">Henüz kategori görseli yüklenmedi</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-3">
+                <input
+                  ref={categoryFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleCategoryImageUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => categoryFileInputRef.current?.click()}
+                  disabled={categoryUploading}
+                  className="border-[#e8e0d4] hover:bg-[#f0ebe3] hover:border-[#a67c52]"
+                >
+                  {categoryUploading ? (
+                    <span className="h-4 w-4 border-2 border-[#a67c52]/30 border-t-[#a67c52] rounded-full animate-spin mr-2" />
+                  ) : (
+                    <Upload className="h-4 w-4 mr-2" />
+                  )}
+                  {categoryUploading ? 'Yükleniyor...' : 'Kategori Görseli Yükle'}
+                </Button>
               </div>
             </div>
           </div>

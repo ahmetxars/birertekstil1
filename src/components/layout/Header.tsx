@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { Menu, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -22,9 +23,15 @@ export default function Header() {
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-[#e8e0d4] shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex flex-col items-start hover:opacity-80 transition-opacity">
-            <span className="text-xl font-bold text-[#a67c52] tracking-wide">Birer Tekstil</span>
-            <span className="text-xs text-[#8b7355] -mt-1 tracking-widest">İSTANBUL</span>
+          <Link href="/" className="flex items-center hover:opacity-80 transition-opacity">
+            <Image
+              src="/birerteks-logo.png"
+              alt="Birer Tekstil"
+              width={240}
+              height={80}
+              priority
+              className="h-12 w-auto sm:h-14"
+            />
           </Link>
 
           <nav className="hidden md:flex items-center gap-1">
@@ -62,10 +69,13 @@ export default function Header() {
               <SheetTitle className="sr-only">Menü</SheetTitle>
               <div className="flex flex-col h-full">
                 <div className="flex items-center justify-between p-4 border-b border-[#e8e0d4]">
-                  <div>
-                    <span className="text-lg font-bold text-[#a67c52]">Birer Tekstil</span>
-                    <span className="block text-xs text-[#8b7355]">İSTANBUL</span>
-                  </div>
+                  <Image
+                    src="/birerteks-logo.png"
+                    alt="Birer Tekstil"
+                    width={220}
+                    height={74}
+                    className="h-11 w-auto"
+                  />
                   <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
                     <X className="h-5 w-5" />
                   </Button>

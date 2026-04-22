@@ -51,6 +51,7 @@ export async function POST(request: NextRequest) {
     const parentId = body.parentId || null
     const name = String(body.name || '').trim()
     const description = String(body.description || '').trim() || null
+    const image = String(body.image || '').trim()
     const order = Number(body.order) || 0
     const requestedSlug = String(body.slug || '').trim()
 
@@ -84,6 +85,7 @@ export async function POST(request: NextRequest) {
         name,
         slug,
         description,
+        image,
         order,
         groupNumber,
         parentId,
