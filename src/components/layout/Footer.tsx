@@ -4,6 +4,9 @@ import { Separator } from '@/components/ui/separator'
 import TrackedExternalLink from '@/components/site/TrackedExternalLink'
 import { buildPhoneHref } from '@/lib/site'
 
+const GOOGLE_MAPS_URL =
+  'https://www.google.com/maps/place/B%C4%B0RER+TEKST%C4%B0L+Ev+Tekstil+%C3%9Cr%C3%BCnleri/@41.0149831,28.9668684,16.84z/data=!4m10!1m2!2m1!1sbirer+tekstil!3m6!1s0x14cab908453b746d:0xdbd49a0cfa41b5df!8m2!3d41.0153495!4d28.9704608!15sCg1iaXJlciB0ZWtzdGlsWg8iDWJpcmVyIHRla3N0aWySARFmYWJyaWNfd2hvbGVzYWxlcpoBRENpOURRVWxSUVVOdlpFTm9kSGxqUmpsdlQydGFhbHBYZUZaalJXeExURmh3VjFWc1pFNU5iR2hHWWtoV1JsVXhSUkFC4AEA-gEECAAQMw!16s%2Fg%2F11myhn3q33?entry=ttu&g_ep=EgoyMDI2MDQxOS4wIKXMDSoASAFQAw%3D%3D'
+
 interface FooterProps {
   settings?: {
     whatsappNumber: string
@@ -80,16 +83,14 @@ export default function Footer({ settings }: FooterProps) {
                 <Mail className="h-4 w-4" />
                 WhatsApp ile fiyat sor
               </TrackedExternalLink>
-              <div className="flex items-start gap-2 text-sm text-[#c4b49a]">
+              <a
+                href={GOOGLE_MAPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-2 text-sm text-[#c4b49a] hover:text-[#a67c52] transition-colors"
+              >
                 <MapPin className="h-4 w-4 mt-0.5 shrink-0" />
                 <span>{safeSettings.address}</span>
-              </div>
-              <a
-                href={`mailto:${safeSettings.email}`}
-                className="flex items-center gap-2 text-sm text-[#c4b49a] hover:text-[#a67c52] transition-colors"
-              >
-                <Mail className="h-4 w-4" />
-                {safeSettings.email}
               </a>
               {safeSettings.instagramUrl && (
                 <a

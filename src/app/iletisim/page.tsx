@@ -6,9 +6,14 @@ import StructuredData from '@/components/site/StructuredData'
 import { getSiteSettings } from '@/lib/catalog'
 import { SITE_NAME, SITE_URL, buildPhoneHref } from '@/lib/site'
 
+const GOOGLE_MAPS_URL =
+  'https://www.google.com/maps/place/B%C4%B0RER+TEKST%C4%B0L+Ev+Tekstil+%C3%9Cr%C3%BCnleri/@41.0149831,28.9668684,16.84z/data=!4m10!1m2!2m1!1sbirer+tekstil!3m6!1s0x14cab908453b746d:0xdbd49a0cfa41b5df!8m2!3d41.0153495!4d28.9704608!15sCg1iaXJlciB0ZWtzdGlsWg8iDWJpcmVyIHRla3N0aWySARFmYWJyaWNfd2hvbGVzYWxlcpoBRENpOURRVWxSUVVOdlpFTm9kSGxqUmpsdlQydGFhbHBYZUZaalJXeExURmh3VjFWc1pFNU5iR2hHWWtoV1JsVXhSUkFC4AEA-gEECAAQMw!16s%2Fg%2F11myhn3q33?entry=ttu&g_ep=EgoyMDI2MDQxOS4wIKXMDSoASAFQAw%3D%3D'
+const GOOGLE_MAPS_EMBED_URL =
+  'https://www.google.com/maps?q=B%C4%B0RER+TEKST%C4%B0L+Ev+Tekstil+%C3%9Cr%C3%BCnleri&z=16&output=embed'
+
 export const metadata: Metadata = {
   title: 'İletişim',
-  description: 'Birer Tekstil ile WhatsApp, telefon veya e-posta üzerinden iletişime geçin.',
+  description: 'Birer Tekstil ile WhatsApp, telefon veya konum üzerinden iletişime geçin.',
   alternates: {
     canonical: '/iletisim',
   },
@@ -72,15 +77,27 @@ export default async function ContactPage() {
               <span className="font-semibold text-[#a67c52]">Hemen ara</span>
             </TrackedExternalLink>
 
-            <div className="rounded-3xl border border-[#e8e0d4] bg-white p-8 shadow-sm">
-              <p className="text-sm uppercase tracking-[0.2em] text-[#a67c52] mb-3">Firma Bilgisi</p>
-              <h2 className="text-2xl font-bold text-[#3d2c1e] mb-3">Birer Tekstil</h2>
-              <div className="space-y-3 text-[#8b7355]">
-                <p>{settings.address}</p>
-                <a href={`mailto:${settings.email}`} className="block hover:text-[#a67c52] transition-colors">
-                  {settings.email}
-                </a>
+            <div className="rounded-3xl border border-[#e8e0d4] bg-white p-4 shadow-sm">
+              <p className="px-4 pt-4 text-sm uppercase tracking-[0.2em] text-[#a67c52] mb-3">
+                Konum
+              </p>
+              <div className="overflow-hidden rounded-2xl border border-[#f3ece3]">
+                <iframe
+                  title="Birer Tekstil Konumu"
+                  src={GOOGLE_MAPS_EMBED_URL}
+                  className="h-[320px] w-full"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
               </div>
+              <a
+                href={GOOGLE_MAPS_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block px-4 pb-4 pt-4 font-semibold text-[#a67c52] hover:text-[#8b5e34] transition-colors"
+              >
+                Google Maps&apos;te ac
+              </a>
             </div>
           </div>
         </div>
