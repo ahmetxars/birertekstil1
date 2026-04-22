@@ -8,6 +8,7 @@ import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import WhatsAppFloat from '@/components/layout/WhatsAppFloat'
 import CategoryProducts from '@/components/sections/CategoryProducts'
+import { getSiteSettings } from '@/lib/catalog'
 
 const BASE_URL = 'https://www.birertekstil.com'
 
@@ -47,6 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function CategoryPage({ params }: Props) {
   const { slug } = await params
+  const settings = await getSiteSettings()
   const category = await db.category.findFirst({
     where: { slug },
     include: { parent: true },
@@ -84,8 +86,8 @@ export default async function CategoryPage({ params }: Props) {
       <main className="flex-1">
         <CategoryProducts categorySlug={slug} />
       </main>
-      <Footer />
-      <WhatsAppFloat />
+      <Footer settings={settings} />
+      <WhatsAppFloat whatsappNumber={settings.whatsappNumber} />
     </div>
   )
 }

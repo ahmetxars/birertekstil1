@@ -8,6 +8,7 @@ import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import WhatsAppFloat from '@/components/layout/WhatsAppFloat'
 import ProductDetail from '@/components/sections/ProductDetail'
+import { getSiteSettings } from '@/lib/catalog'
 
 const BASE_URL = 'https://www.birertekstil.com'
 
@@ -48,6 +49,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { slug, productId } = await params
+  const settings = await getSiteSettings()
   const product = await db.product.findUnique({
     where: { id: productId },
     include: { category: { include: { parent: true } } },
@@ -126,8 +128,8 @@ export default async function ProductPage({ params }: Props) {
       <main className="flex-1">
         <ProductDetail productId={productId} categorySlug={slug} />
       </main>
-      <Footer />
-      <WhatsAppFloat />
+      <Footer settings={settings} />
+      <WhatsAppFloat whatsappNumber={settings.whatsappNumber} />
     </div>
   )
 }
