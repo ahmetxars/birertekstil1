@@ -81,14 +81,10 @@ export default async function HomePage() {
                 {settings.aboutText ||
                   'Birer Tekstil olarak İstanbul merkezli üretim ve tedarik tecrübemizle ev tekstili ürünlerini sade, hızlı ve güven veren bir yapıyla sunuyoruz.'}
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                 <div className="rounded-2xl bg-[#f8f5f0] border border-[#e8e0d4] p-4">
                   <p className="font-semibold text-[#3d2c1e] mb-1">Üretici avantajı</p>
                   <p className="text-[#8b7355]">Doğrudan fiyat ve hızlı iletişim</p>
-                </div>
-                <div className="rounded-2xl bg-[#f8f5f0] border border-[#e8e0d4] p-4">
-                  <p className="font-semibold text-[#3d2c1e] mb-1">8 ürün grubu</p>
-                  <p className="text-[#8b7355]">Kategori bazlı SEO görünürlüğüne uygun yapı</p>
                 </div>
                 <div className="rounded-2xl bg-[#f8f5f0] border border-[#e8e0d4] p-4">
                   <p className="font-semibold text-[#3d2c1e] mb-1">Hızlı teklif</p>
@@ -128,7 +124,6 @@ export default async function HomePage() {
               </div>
               <div className="mt-6 space-y-2 text-sm text-white/70">
                 <p>{settings.phone}</p>
-                <p>{settings.email}</p>
                 <p>{settings.address}</p>
               </div>
             </div>
