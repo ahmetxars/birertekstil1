@@ -17,6 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
   title: {
     default: `${SITE_NAME} | İstanbul'da Üreticiden Ev Tekstili`,
     template: `%s | ${SITE_NAME}`,
@@ -36,12 +37,15 @@ export const metadata: Metadata = {
   authors: [{ name: SITE_NAME }],
   icons: {
     icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon.png', type: 'image/png', sizes: '1024x1024' },
       { url: '/birerteks-logo.png', type: 'image/png' },
       { url: '/logo.svg', type: 'image/svg+xml' },
     ],
-    shortcut: '/birerteks-logo.png',
-    apple: '/birerteks-logo.png',
+    shortcut: ['/favicon.ico'],
+    apple: [{ url: '/apple-icon.png', sizes: '1024x1024', type: 'image/png' }],
   },
+  manifest: '/manifest.webmanifest',
   openGraph: {
     title: `${SITE_NAME} | İstanbul'da Üreticiden Ev Tekstili`,
     description:
