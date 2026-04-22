@@ -35,7 +35,12 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: SITE_NAME }],
   icons: {
-    icon: '/logo.svg',
+    icon: [
+      { url: '/birerteks-logo.png', type: 'image/png' },
+      { url: '/logo.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/birerteks-logo.png',
+    apple: '/birerteks-logo.png',
   },
   openGraph: {
     title: `${SITE_NAME} | İstanbul'da Üreticiden Ev Tekstili`,
