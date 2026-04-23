@@ -94,7 +94,7 @@ export default function ProductDetail({
                   src={product.image}
                   alt={`${product.name} ürün görseli`}
                   fill
-                  className="object-cover"
+                  className={product.inStock ? 'object-cover' : 'object-cover grayscale brightness-50'}
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   priority
                 />
@@ -185,7 +185,9 @@ export default function ProductDetail({
                           src={relatedProduct.image}
                           alt={`${relatedProduct.name} ürün görseli`}
                           fill
-                          className="object-cover group-hover:scale-105 transition-transform duration-500"
+                          className={`object-cover transition-transform duration-500 group-hover:scale-105 ${
+                            relatedProduct.inStock ? '' : 'grayscale brightness-50'
+                          }`}
                           sizes="(max-width: 1024px) 50vw, 25vw"
                         />
                       ) : (

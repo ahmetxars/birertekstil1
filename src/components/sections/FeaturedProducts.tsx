@@ -100,7 +100,9 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
                       src={product.image}
                       alt={`${product.name} ürün görseli`}
                       fill
-                      className="object-cover hover:scale-105 transition-transform duration-500"
+                      className={`object-cover transition-transform duration-500 hover:scale-105 ${
+                        product.inStock ? '' : 'grayscale brightness-50'
+                      }`}
                       sizes="288px"
                     />
                   ) : (

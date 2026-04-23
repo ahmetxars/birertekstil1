@@ -162,7 +162,9 @@ export default function CategoryProducts({
                         src={product.image}
                         alt={`${product.name} ürün görseli`}
                         fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
+                        className={`object-cover transition-transform duration-500 group-hover:scale-105 ${
+                          product.inStock ? '' : 'grayscale brightness-50'
+                        }`}
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       />
                     ) : (
