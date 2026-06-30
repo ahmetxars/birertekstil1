@@ -45,10 +45,29 @@ export default function ProductDetail({
 }: ProductDetailProps) {
   const galleryImages = product.images?.length ? product.images : product.image ? [product.image] : []
   const [selectedImage, setSelectedImage] = useState(galleryImages[0] || '')
+  const [failedImages, setFailedImages] = useState<string[]>([])
 
   useEffect(() => {
     setSelectedImage(galleryImages[0] || '')
+    setFailedImages([])
   }, [product.id, product.image, product.images])
+
+  const visibleImages = galleryImages.filter((image) => !failedImages.includes(image))
+
+  useEffect(() => {
+    if (!selectedImage && visibleImages.length > 0) {
+      setSelectedImage(visibleImages[0])
+      return
+    }
+
+    if (selectedImage && !visibleImages.includes(selectedImage)) {
+      setSelectedImage(visibleImages[0] || '')
+    }
+  }, [selectedImage, visibleImages])
+
+  const handleImageError = (image: string) => {
+    setFailedImages((prev) => (prev.includes(image) ? prev : [...prev, image]))
+  }
 
   return (
     <div className="min-h-screen">
@@ -106,10 +125,11 @@ export default function ProductDetail({
                   className={product.inStock ? 'object-cover' : 'object-cover grayscale brightness-50'}
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   priority
+                  onError={() => handleImageError(selectedImage)}
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <span className="text-sm text-[#8b7355]">Ürün Görseli</span>
+                  <span className="text-sm text-[#8b7355]">Gorsel yuklenemedi</span>
                 </div>
               )}
               {!product.inStock && (
@@ -118,13 +138,13 @@ export default function ProductDetail({
                 </div>
               )}
             </div>
-            {galleryImages.length > 1 && (
+            {visibleImages.length > 1 && (
               <div className="mt-4">
                 <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#8b7355]">
                   Renk Seçenekleri
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  {galleryImages.map((image, index) => (
+                  {visibleImages.map((image, index) => (
                     <button
                       key={`${image}-${index}`}
                       type="button"
@@ -141,6 +161,7 @@ export default function ProductDetail({
                         fill
                         className="object-cover"
                         sizes="80px"
+                        onError={() => handleImageError(image)}
                       />
                     </button>
                   ))}
