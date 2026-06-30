@@ -1,6 +1,7 @@
 import { access, mkdir, readFile, writeFile } from 'fs/promises'
 import { constants } from 'fs'
 import { extname, join } from 'path'
+import { homedir, tmpdir } from 'os'
 
 const MIME_TO_EXTENSION: Record<string, string> = {
   'image/jpeg': '.jpg',
@@ -11,8 +12,16 @@ const MIME_TO_EXTENSION: Record<string, string> = {
   'image/gif': '.gif',
 }
 
-function getStorageDir() {
-  return process.env.UPLOAD_STORAGE_DIR || join(process.cwd(), 'data', 'uploads', 'products')
+function getStorageCandidates() {
+  const envDir = process.env.UPLOAD_STORAGE_DIR
+
+  return [
+    envDir,
+    join(process.cwd(), 'public', 'uploads', 'products'),
+    join(process.cwd(), 'data', 'uploads', 'products'),
+    join(homedir(), '.birer-tekstil', 'uploads', 'products'),
+    join(tmpdir(), 'birer-tekstil', 'uploads', 'products'),
+  ].filter((value): value is string => Boolean(value))
 }
 
 export function getPublicUploadUrl(filename: string) {
@@ -37,10 +46,21 @@ export function buildUploadFilename(originalName: string, mimeType: string) {
 }
 
 export async function ensureUploadStorageDir() {
-  const dir = getStorageDir()
-  await mkdir(dir, { recursive: true })
-  await access(dir, constants.W_OK)
-  return dir
+  let lastError: unknown
+
+  for (const dir of getStorageCandidates()) {
+    try {
+      await mkdir(dir, { recursive: true })
+      await access(dir, constants.W_OK)
+      return dir
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error('Yazilabilir upload klasoru bulunamadi')
 }
 
 export async function saveUploadedFile(filename: string, buffer: Buffer) {
@@ -53,8 +73,16 @@ export async function saveUploadedFile(filename: string, buffer: Buffer) {
 }
 
 export async function readUploadedFile(filename: string) {
-  const dir = getStorageDir()
-  const filepath = join(dir, filename)
-  return readFile(filepath)
-}
+  let lastError: unknown
 
+  for (const dir of getStorageCandidates()) {
+    try {
+      const filepath = join(dir, filename)
+      return await readFile(filepath)
+    } catch (error) {
+      lastError = error
+    }
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Dosya okunamadi')
+}
