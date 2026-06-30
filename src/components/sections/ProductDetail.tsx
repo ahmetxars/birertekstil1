@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ChevronRight, Home, Star } from 'lucide-react'
@@ -16,6 +17,7 @@ interface Product {
   name: string
   description: string | null
   image: string
+  images: string[]
   featured: boolean
   inStock: boolean
   category: {
@@ -41,6 +43,13 @@ export default function ProductDetail({
   relatedProducts,
   whatsappNumber,
 }: ProductDetailProps) {
+  const galleryImages = product.images?.length ? product.images : product.image ? [product.image] : []
+  const [selectedImage, setSelectedImage] = useState(galleryImages[0] || '')
+
+  useEffect(() => {
+    setSelectedImage(galleryImages[0] || '')
+  }, [product.id, product.image, product.images])
+
   return (
     <div className="min-h-screen">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -89,9 +98,9 @@ export default function ProductDetail({
             transition={{ duration: 0.5 }}
           >
             <div className="relative w-full aspect-square max-h-[500px] bg-[#f0ebe3] rounded-2xl overflow-hidden border border-[#e8e0d4]">
-              {product.image ? (
+              {selectedImage ? (
                 <Image
-                  src={product.image}
+                  src={selectedImage}
                   alt={`${product.name} ürün görseli`}
                   fill
                   className={product.inStock ? 'object-cover' : 'object-cover grayscale brightness-50'}
@@ -109,6 +118,35 @@ export default function ProductDetail({
                 </div>
               )}
             </div>
+            {galleryImages.length > 1 && (
+              <div className="mt-4">
+                <p className="mb-3 text-sm font-semibold uppercase tracking-[0.18em] text-[#8b7355]">
+                  Renk Seçenekleri
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {galleryImages.map((image, index) => (
+                    <button
+                      key={`${image}-${index}`}
+                      type="button"
+                      onClick={() => setSelectedImage(image)}
+                      className={`relative h-20 w-20 overflow-hidden rounded-xl border transition-all ${
+                        selectedImage === image
+                          ? 'border-[#a67c52] ring-2 ring-[#a67c52]/20'
+                          : 'border-[#e8e0d4] hover:border-[#c9b08d]'
+                      }`}
+                    >
+                      <Image
+                        src={image}
+                        alt={`${product.name} renk secenegi ${index + 1}`}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </motion.div>
 
           <motion.div

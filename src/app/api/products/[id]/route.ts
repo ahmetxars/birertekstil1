@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
 import { db } from '@/lib/db'
+import { buildProductImageGallery, serializeProductImages } from '@/lib/product-images'
 
 function isAuthorized(request: NextRequest) {
   return isValidAdminSessionToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)
+}
+
+function normalizeProductResponse<
+  T extends {
+    image: string
+    images: string
+  },
+>(product: T) {
+  return {
+    ...product,
+    images: buildProductImageGallery(product.image, product.images),
+  }
 }
 
 export async function GET(
@@ -24,7 +37,7 @@ export async function GET(
       return NextResponse.json({ error: 'Ürün bulunamadı' }, { status: 404 })
     }
 
-    return NextResponse.json(product)
+    return NextResponse.json(normalizeProductResponse(product))
   } catch (error) {
     console.error('Product GET error:', error)
     return NextResponse.json({ error: 'Ürün yüklenirken hata oluştu' }, { status: 500 })
@@ -42,14 +55,16 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    const { name, description, image, categoryId, featured, inStock, order } = body
+    const { name, description, image, images, categoryId, featured, inStock, order } = body
+    const gallery = buildProductImageGallery(image, images)
 
     const product = await db.product.update({
       where: { id },
       data: {
         ...(name !== undefined && { name }),
         ...(description !== undefined && { description }),
-        ...(image !== undefined && { image }),
+        ...(image !== undefined && { image: gallery[0] || image || '' }),
+        ...(images !== undefined && { images: serializeProductImages(gallery) }),
         ...(categoryId !== undefined && { categoryId }),
         ...(featured !== undefined && { featured }),
         ...(inStock !== undefined && { inStock }),
@@ -60,7 +75,7 @@ export async function PUT(
       },
     })
 
-    return NextResponse.json(product)
+    return NextResponse.json(normalizeProductResponse(product))
   } catch (error) {
     console.error('Product PUT error:', error)
     return NextResponse.json({ error: 'Ürün güncellenirken hata oluştu' }, { status: 500 })

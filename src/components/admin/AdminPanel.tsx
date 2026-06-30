@@ -96,6 +96,7 @@ interface Product {
   name: string
   description: string | null
   image: string
+  images: string[]
   categoryId: string
   featured: boolean
   inStock: boolean
@@ -107,6 +108,7 @@ interface ProductFormData {
   name: string
   description: string
   image: string
+  images: string[]
   categoryId: string
   featured: boolean
   inStock: boolean
@@ -157,6 +159,7 @@ const emptyProductForm: ProductFormData = {
   name: '',
   description: '',
   image: '',
+  images: [],
   categoryId: '',
   featured: false,
   inStock: true,
@@ -325,6 +328,7 @@ export default function AdminPanel() {
       name: product.name,
       description: product.description || '',
       image: product.image,
+      images: product.images?.length ? product.images : product.image ? [product.image] : [],
       categoryId: product.categoryId,
       featured: product.featured,
       inStock: product.inStock,
@@ -337,6 +341,15 @@ export default function AdminPanel() {
     setProductDialogOpen(false)
     setEditingProduct(null)
     setProductForm(emptyProductForm)
+  }
+
+  const syncProductImages = (images: string[]) => {
+    const uniqueImages = images.filter((image, index, list) => Boolean(image) && list.indexOf(image) === index)
+    setProductForm((prev) => ({
+      ...prev,
+      image: uniqueImages[0] || '',
+      images: uniqueImages,
+    }))
   }
 
   const openAddCategory = (parentId?: string) => {
@@ -374,24 +387,36 @@ export default function AdminPanel() {
   }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
 
     setUploading(true)
     try {
-      const formData = new FormData()
-      formData.append('file', file)
-      const res = await fetch('/api/upload', { method: 'POST', body: formData })
-      if (res.status === 401) {
-        router.push('/giris?next=/yonetim')
-        return
+      const uploadedUrls: string[] = []
+
+      for (const file of files) {
+        const formData = new FormData()
+        formData.append('file', file)
+        const res = await fetch('/api/upload', { method: 'POST', body: formData })
+        if (res.status === 401) {
+          router.push('/giris?next=/yonetim')
+          return
+        }
+        const data = await res.json()
+        if (!res.ok || !data.url) {
+          toast.error(data.error || 'Resim yüklenirken hata oluştu')
+          return
+        }
+        uploadedUrls.push(data.url)
       }
-      const data = await res.json()
-      if (res.ok && data.url) {
-        setProductForm((prev) => ({ ...prev, image: data.url }))
-        toast.success('Resim başarıyla yüklendi')
-      } else {
-        toast.error(data.error || 'Resim yüklenirken hata oluştu')
+
+      if (uploadedUrls.length > 0) {
+        syncProductImages([...productForm.images, ...uploadedUrls])
+        toast.success(
+          uploadedUrls.length === 1
+            ? 'Gorsel basariyla yuklendi'
+            : `${uploadedUrls.length} gorsel basariyla yuklendi`
+        )
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Dosya yüklenirken hata oluştu')
@@ -445,7 +470,11 @@ export default function AdminPanel() {
       const res = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(productForm),
+        body: JSON.stringify({
+          ...productForm,
+          image: productForm.images[0] || productForm.image,
+          images: productForm.images,
+        }),
       })
 
       if (res.status === 401) {
@@ -2027,16 +2056,14 @@ export default function AdminPanel() {
                 <div className="relative w-full max-w-[240px] h-48 rounded-xl overflow-hidden border border-[#e8e0d4] group">
                   <Image
                     src={productForm.image}
-                    alt="Ürün görseli"
+                    alt="Kapak görseli"
                     fill
                     className="object-cover"
                     sizes="240px"
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                     <button
-                      onClick={() =>
-                        setProductForm({ ...productForm, image: '' })
-                      }
+                      onClick={() => syncProductImages(productForm.images.slice(1))}
                       className="opacity-0 group-hover:opacity-100 transition-opacity w-8 h-8 rounded-full bg-red-500 text-white flex items-center justify-center hover:bg-red-600"
                     >
                       <X className="h-4 w-4" />
@@ -2047,8 +2074,61 @@ export default function AdminPanel() {
                 <div className="w-full max-w-[240px] h-48 rounded-xl border-2 border-dashed border-[#e8e0d4] flex items-center justify-center hover:border-[#a67c52]/40 transition-colors">
                   <div className="text-center">
                     <ImageIcon className="h-10 w-10 mx-auto text-[#c4b49a] mb-2" />
-                    <p className="text-xs text-[#8b7355]">Henüz görsel yüklenmedi</p>
+                    <p className="text-xs text-[#8b7355]">Kapak görseli henüz yüklenmedi</p>
                   </div>
+                </div>
+              )}
+              {productForm.images.length > 1 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#8b7355]">
+                    Diger renk secenekleri
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    {productForm.images.map((imageUrl, index) => (
+                      <div
+                        key={`${imageUrl}-${index}`}
+                        className="relative h-20 w-20 overflow-hidden rounded-xl border border-[#e8e0d4] bg-white"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            syncProductImages([
+                              imageUrl,
+                              ...productForm.images.filter((item) => item !== imageUrl),
+                            ])
+                          }
+                          className="absolute inset-0 z-10"
+                          aria-label="Kapak gorselini degistir"
+                        />
+                        <Image
+                          src={imageUrl}
+                          alt={`Urun secenegi ${index + 1}`}
+                          fill
+                          className="object-cover"
+                          sizes="80px"
+                        />
+                        {index === 0 && (
+                          <span className="absolute left-1 top-1 z-20 rounded-full bg-[#a67c52] px-2 py-0.5 text-[10px] font-semibold text-white">
+                            Kapak
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            syncProductImages(productForm.images.filter((item) => item !== imageUrl))
+                          }}
+                          className="absolute right-1 top-1 z-20 flex h-6 w-6 items-center justify-center rounded-full bg-black/70 text-white hover:bg-red-500"
+                          aria-label="Gorseli sil"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-[#8b7355]">
+                    Kucuk gorselleri tiklayarak kapak gorselini degistirebilirsin.
+                  </p>
                 </div>
               )}
               <div className="flex items-center gap-3">
@@ -2056,6 +2136,7 @@ export default function AdminPanel() {
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
+                  multiple
                   onChange={handleImageUpload}
                   className="hidden"
                 />
@@ -2071,7 +2152,7 @@ export default function AdminPanel() {
                   ) : (
                     <Upload className="h-4 w-4 mr-2" />
                   )}
-                  {uploading ? 'Yükleniyor...' : 'Dosya Yükle'}
+                  {uploading ? 'Yükleniyor...' : 'Renk Görselleri Yükle'}
                 </Button>
               </div>
             </div>

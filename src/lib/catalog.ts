@@ -1,6 +1,19 @@
 import { db } from '@/lib/db'
+import { buildProductImageGallery } from '@/lib/product-images'
 import { extractProductIdFromParam } from '@/lib/site'
 import { unstable_noStore as noStore } from 'next/cache'
+
+function normalizeProductGallery<
+  T extends {
+    image: string
+    images: string
+  },
+>(product: T) {
+  return {
+    ...product,
+    images: buildProductImageGallery(product.image, product.images),
+  }
+}
 
 export async function getSiteSettings() {
   noStore()
@@ -119,7 +132,7 @@ export async function getCategoryProducts(categoryId: string) {
 }
 
 export async function getProductByRouteParam(param: string) {
-  return db.product.findUnique({
+  const product = await db.product.findUnique({
     where: { id: extractProductIdFromParam(param) },
     include: {
       category: {
@@ -139,6 +152,8 @@ export async function getProductByRouteParam(param: string) {
       },
     },
   })
+
+  return product ? normalizeProductGallery(product) : null
 }
 
 export async function getRelatedProducts(categoryId: string, excludeId: string) {
