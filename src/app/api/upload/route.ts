@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
+import {
+  buildUploadFilename,
+  getExtensionForMimeType,
+  getPublicUploadUrl,
+  saveUploadedFile,
+} from '@/lib/upload-storage'
+
+export const runtime = 'nodejs'
 
 export async function POST(request: NextRequest) {
   if (!isValidAdminSessionToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)) {
@@ -16,7 +22,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Dosya bulunamadı' }, { status: 400 })
     }
 
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/pjpeg', 'image/png', 'image/webp', 'image/gif']
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json({ error: 'Sadece JPG, PNG, WebP veya GIF yükleyebilirsiniz' }, { status: 400 })
     }
@@ -28,20 +34,17 @@ export async function POST(request: NextRequest) {
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
+    const filename = buildUploadFilename(file.name, file.type)
 
-    const uploadDir = join(process.cwd(), 'public', 'uploads', 'products')
-    await mkdir(uploadDir, { recursive: true })
+    if (!getExtensionForMimeType(file.type) && !file.name.includes('.')) {
+      return NextResponse.json({ error: 'Dosya uzantısı çözümlenemedi' }, { status: 400 })
+    }
 
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`
-    const ext = file.name.split('.').pop()
-    const filename = `${uniqueSuffix}.${ext}`
-    const filepath = join(uploadDir, filename)
+    await saveUploadedFile(filename, buffer)
 
-    await writeFile(filepath, buffer)
-
-    return NextResponse.json({ url: `/uploads/products/${filename}` }, { status: 201 })
+    return NextResponse.json({ url: getPublicUploadUrl(filename) }, { status: 201 })
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ error: 'Dosya yüklenirken hata oluştu' }, { status: 500 })
+    return NextResponse.json({ error: 'Dosya sunucuya kaydedilemedi' }, { status: 500 })
   }
 }

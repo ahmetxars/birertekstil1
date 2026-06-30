@@ -387,14 +387,14 @@ export default function AdminPanel() {
         return
       }
       const data = await res.json()
-      if (data.url) {
+      if (res.ok && data.url) {
         setProductForm((prev) => ({ ...prev, image: data.url }))
         toast.success('Resim başarıyla yüklendi')
       } else {
-        toast.error('Resim yüklenirken hata oluştu')
+        toast.error(data.error || 'Resim yüklenirken hata oluştu')
       }
-    } catch {
-      toast.error('Dosya yüklenirken hata oluştu')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Dosya yüklenirken hata oluştu')
     } finally {
       setUploading(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -415,14 +415,14 @@ export default function AdminPanel() {
         return
       }
       const data = await res.json()
-      if (data.url) {
+      if (res.ok && data.url) {
         setCategoryForm((prev) => ({ ...prev, image: data.url }))
         toast.success('Kategori görseli başarıyla yüklendi')
       } else {
-        toast.error('Kategori görseli yüklenirken hata oluştu')
+        toast.error(data.error || 'Kategori görseli yüklenirken hata oluştu')
       }
-    } catch {
-      toast.error('Dosya yüklenirken hata oluştu')
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Dosya yüklenirken hata oluştu')
     } finally {
       setCategoryUploading(false)
       if (categoryFileInputRef.current) categoryFileInputRef.current.value = ''
