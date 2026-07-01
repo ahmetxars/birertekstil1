@@ -649,6 +649,11 @@ export default function AdminPanel() {
   }
 
   const handleSeed = async () => {
+    if (!canSeedDemoData) {
+      toast.error('Demo veri yukleme sadece bos veritabaninda kullanilabilir')
+      return
+    }
+
     try {
       const res = await fetch('/api/seed', { method: 'POST' })
       if (res.status === 401) {
@@ -656,10 +661,11 @@ export default function AdminPanel() {
         return
       }
       if (res.ok) {
-        toast.success('Veriler başarıyla yenilendi')
+        toast.success('Demo verileri başarıyla yüklendi')
         fetchData()
       } else {
-        toast.error('Veriler yenilenirken hata oluştu')
+        const data = await res.json().catch(() => null)
+        toast.error(data?.error || 'Demo verileri yüklenirken hata oluştu')
       }
     } catch {
       toast.error('Bağlantı hatası')
@@ -747,6 +753,7 @@ export default function AdminPanel() {
   const totalProducts = products.length
   const totalCategories = categories.length
   const totalFeatured = products.filter((p) => p.featured).length
+  const canSeedDemoData = totalProducts === 0 && totalCategories === 0
 
   /* ================================================================ */
   /*  Sidebar Content (shared between desktop & mobile sheet)          */
@@ -949,14 +956,21 @@ export default function AdminPanel() {
                 <span className="text-sm text-[#3d2c1e]">Bugün</span>
               </div>
               <Separator />
-              <Button
-                variant="outline"
-                onClick={handleSeed}
-                className="w-full border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3] hover:border-[#a67c52]"
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Verileri Yenile
-              </Button>
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  onClick={handleSeed}
+                  disabled={!canSeedDemoData}
+                  className="w-full border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3] hover:border-[#a67c52] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Demo Verisi Kur
+                </Button>
+                <p className="text-xs text-[#8b7355]">
+                  Bu islem yalnizca ilk kurulumda, veritabani bossa kullanilir. Mevcut
+                  kategori ve urunleri artik ezemez.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -11,9 +11,20 @@ export async function POST() {
   }
 
   try {
-    // Clear existing data
-    await db.product.deleteMany()
-    await db.category.deleteMany()
+    const [existingProducts, existingCategories] = await Promise.all([
+      db.product.count(),
+      db.category.count(),
+    ])
+
+    if (existingProducts > 0 || existingCategories > 0) {
+      return NextResponse.json(
+        {
+          error:
+            'Veritabani zaten veri iceriyor. Seed islemi mevcut kategori ve urunleri ezmemesi icin engellendi.',
+        },
+        { status: 409 }
+      )
+    }
 
     for (const rootCategory of DEFAULT_CATEGORY_TREE) {
       const createdRoot = await db.category.create({
@@ -56,7 +67,7 @@ export async function POST() {
       }
     }
 
-    return NextResponse.json({ message: 'Veriler başarıyla yüklendi' })
+    return NextResponse.json({ message: 'Demo verileri başarıyla yüklendi' })
   } catch (error) {
     console.error('Seed error:', error)
     return NextResponse.json({ error: 'Veriler yüklenirken hata oluştu' }, { status: 500 })
