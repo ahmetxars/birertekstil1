@@ -731,13 +731,6 @@ export default function AdminPanel() {
       return (a.order || 0) - (b.order || 0)
     })
 
-  const flatCategoryRows = topLevelCategories.flatMap((parentCategory) => [
-    parentCategory,
-    ...categories
-      .filter((category) => category.parentId === parentCategory.id)
-      .sort((a, b) => (a.order || 0) - (b.order || 0)),
-  ])
-
   const leafCategories = categories
     .filter((category) => !category.children?.length)
     .sort((a, b) => {
@@ -1323,7 +1316,7 @@ export default function AdminPanel() {
         <div>
           <h2 className="text-2xl font-bold text-[#3d2c1e]">Kategoriler</h2>
           <p className="text-sm text-[#8b7355] mt-1">
-            {topLevelCategories.length} ana kategori, {totalCategories - topLevelCategories.length} alt kategori
+            {topLevelCategories.length} ana kategori
           </p>
         </div>
         <Button
@@ -1336,7 +1329,7 @@ export default function AdminPanel() {
       </div>
 
       <Card className="border-[#e8e0d4] bg-white shadow-sm overflow-hidden">
-        {categories.length === 0 ? (
+        {topLevelCategories.length === 0 ? (
           <div className="p-12 text-center">
             <FolderOpen className="h-12 w-12 mx-auto text-[#e8e0d4] mb-4" />
             <p className="text-[#8b7355] font-medium">Henüz kategori bulunmuyor</p>
@@ -1362,10 +1355,7 @@ export default function AdminPanel() {
                       Kategori Adı
                     </th>
                     <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
-                      Tip
-                    </th>
-                    <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
-                      Üst Kategori
+                      Alt Kategori
                     </th>
                     <th className="text-left p-4 text-xs font-semibold text-[#8b7355] uppercase tracking-wider">
                       Slug
@@ -1379,7 +1369,7 @@ export default function AdminPanel() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f0ebe3]">
-                  {flatCategoryRows.map((cat, i) => (
+                  {topLevelCategories.map((cat, i) => (
                     <motion.tr
                       key={cat.id}
                       initial={{ opacity: 0 }}
@@ -1394,28 +1384,19 @@ export default function AdminPanel() {
                       </td>
                       <td className="p-4">
                         <span className="font-medium text-[#3d2c1e] text-sm">
-                          {cat.parentId ? (
-                            <span className="inline-flex items-center gap-2">
-                              <span className="text-[#a67c52]">↳</span>
-                              {cat.name}
-                            </span>
-                          ) : (
-                            cat.name
-                          )}
+                          {cat.name}
                         </span>
                       </td>
                       <td className="p-4">
-                        <Badge
+                        <Button
                           variant="outline"
-                          className="border-[#e8e0d4] text-[#8b7355] text-xs bg-[#f8f5f0]"
+                          size="sm"
+                          onClick={() => openAddCategory(cat.id)}
+                          className="h-8 border-[#e8e0d4] text-[#a67c52] hover:bg-[#a67c52]/5"
                         >
-                          {cat.parentId ? 'Alt' : 'Ana'}
-                        </Badge>
-                      </td>
-                      <td className="p-4">
-                        <span className="text-sm text-[#8b7355]">
-                          {cat.parent?.name || '-'}
-                        </span>
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Alt kategori ekle
+                        </Button>
                       </td>
                       <td className="p-4">
                         <div className="space-y-1">
@@ -1436,16 +1417,6 @@ export default function AdminPanel() {
                       </td>
                       <td className="p-4">
                         <div className="flex items-center justify-end gap-1">
-                          {!cat.parentId && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openAddCategory(cat.id)}
-                              className="h-8 w-8 text-[#8b7355] hover:text-[#a67c52] hover:bg-[#a67c52]/10"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </Button>
-                          )}
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1471,7 +1442,7 @@ export default function AdminPanel() {
             </div>
 
             <div className="md:hidden divide-y divide-[#f0ebe3]">
-              {flatCategoryRows.map((cat) => (
+              {topLevelCategories.map((cat) => (
                 <div key={cat.id} className="p-4">
                   <div className="flex items-start justify-between">
                     <div className="flex items-start gap-3 min-w-0">
@@ -1481,30 +1452,23 @@ export default function AdminPanel() {
                         </span>
                       </div>
                       <div className="min-w-0">
-                        <p className="font-medium text-[#3d2c1e] text-sm">
-                          {cat.parentId ? '↳ ' : ''}
-                          {cat.name}
-                        </p>
-                        <p className="text-xs text-[#8b7355] mt-0.5">
-                          {cat.parentId ? `Alt kategori · ${cat.parent?.name}` : 'Ana kategori'}
-                        </p>
+                        <p className="font-medium text-[#3d2c1e] text-sm">{cat.name}</p>
+                        <p className="text-xs text-[#8b7355] mt-0.5">Ana kategori</p>
                         {cat.description ? (
                           <p className="text-xs text-[#8b7355] mt-1 line-clamp-2">
                             {cat.description}
                           </p>
                         ) : null}
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {!cat.parentId && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openAddCategory(cat.id)}
-                              className="h-8 border-[#e8e0d4] text-[#a67c52]"
-                            >
-                              <Plus className="h-3.5 w-3.5 mr-1" />
-                              Alt Kategori
-                            </Button>
-                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openAddCategory(cat.id)}
+                            className="h-8 border-[#e8e0d4] text-[#a67c52]"
+                          >
+                            <Plus className="h-3.5 w-3.5 mr-1" />
+                            Alt Kategori
+                          </Button>
                           <Button
                             variant="outline"
                             size="sm"
