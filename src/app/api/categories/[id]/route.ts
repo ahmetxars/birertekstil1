@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
+import {
+  moveTopLevelCategoryGroup,
+  resequenceGroupsAfterTopLevelDelete,
+  shiftGroupsForNewTopLevelCategory,
+} from '@/lib/category-groups'
 import { db } from '@/lib/db'
 import { slugify } from '@/lib/site'
 
@@ -29,7 +34,8 @@ export async function PUT(
       return NextResponse.json({ error: 'Kategori adı zorunludur' }, { status: 400 })
     }
 
-    let groupNumber = Number(body.groupNumber) || 0
+    const requestedGroupNumber = Number(body.groupNumber) || 0
+    let groupNumber = requestedGroupNumber
 
     if (parentId) {
       if (parentId === id) {
@@ -56,30 +62,83 @@ export async function PUT(
       return NextResponse.json({ error: 'Ana kategori için grup numarası zorunludur' }, { status: 400 })
     }
 
-    const category = await db.category.update({
-      where: { id },
-      data: {
-        name,
-        slug: slugify(requestedSlug || name),
-        description,
-        image,
-        parentId,
-        order,
-        groupNumber,
-      },
-      include: {
-        parent: {
-          select: { id: true, name: true, slug: true },
+    const category = await db.$transaction(async (tx) => {
+      const existingCategory = await tx.category.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          groupNumber: true,
+          parentId: true,
+          _count: {
+            select: {
+              children: true,
+            },
+          },
         },
-        children: true,
-        _count: {
-          select: { products: true },
+      })
+
+      if (!existingCategory) {
+        throw new Error('CATEGORY_NOT_FOUND')
+      }
+
+      const wasTopLevel = !existingCategory.parentId
+      const willBeTopLevel = !parentId
+
+      if (wasTopLevel && parentId && existingCategory._count.children > 0) {
+        throw new Error('TOP_LEVEL_WITH_CHILDREN_CANNOT_BE_NESTED')
+      }
+
+      if (wasTopLevel && willBeTopLevel) {
+        groupNumber = await moveTopLevelCategoryGroup(
+          tx,
+          id,
+          existingCategory.groupNumber,
+          requestedGroupNumber
+        )
+      } else if (!wasTopLevel && willBeTopLevel) {
+        groupNumber = await shiftGroupsForNewTopLevelCategory(tx, requestedGroupNumber)
+      } else if (wasTopLevel && !willBeTopLevel) {
+        await resequenceGroupsAfterTopLevelDelete(tx, existingCategory.groupNumber)
+      }
+
+      return tx.category.update({
+        where: { id },
+        data: {
+          name,
+          slug: slugify(requestedSlug || name),
+          description,
+          image,
+          parentId,
+          order,
+          groupNumber,
         },
-      },
+        include: {
+          parent: {
+            select: { id: true, name: true, slug: true },
+          },
+          children: true,
+          _count: {
+            select: { products: true },
+          },
+        },
+      })
     })
 
     return NextResponse.json(category)
   } catch (error) {
+    if (error instanceof Error) {
+      if (error.message === 'CATEGORY_NOT_FOUND') {
+        return NextResponse.json({ error: 'Kategori bulunamadı' }, { status: 404 })
+      }
+
+      if (error.message === 'TOP_LEVEL_WITH_CHILDREN_CANNOT_BE_NESTED') {
+        return NextResponse.json(
+          { error: 'Alt kategorileri olan bir ana kategoriyi alt kategoriye ceviremezsiniz.' },
+          { status: 400 }
+        )
+      }
+    }
+
     console.error('Category PUT error:', error)
     return NextResponse.json({ error: 'Kategori güncellenirken hata oluştu' }, { status: 500 })
   }
@@ -126,8 +185,14 @@ export async function DELETE(
       )
     }
 
-    await db.category.delete({
-      where: { id },
+    await db.$transaction(async (tx) => {
+      await tx.category.delete({
+        where: { id },
+      })
+
+      if (!category.parentId) {
+        await resequenceGroupsAfterTopLevelDelete(tx, category.groupNumber)
+      }
     })
 
     return NextResponse.json({ success: true })

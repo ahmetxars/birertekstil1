@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
+import { shiftGroupsForNewTopLevelCategory } from '@/lib/category-groups'
 import { db } from '@/lib/db'
 import { slugify } from '@/lib/site'
 
@@ -80,25 +81,31 @@ export async function POST(request: NextRequest) {
 
     const slug = slugify(requestedSlug || name)
 
-    const category = await db.category.create({
-      data: {
-        name,
-        slug,
-        description,
-        image,
-        order,
-        groupNumber,
-        parentId,
-      },
-      include: {
-        parent: {
-          select: { id: true, name: true, slug: true },
+    const category = await db.$transaction(async (tx) => {
+      const finalGroupNumber = parentId
+        ? groupNumber
+        : await shiftGroupsForNewTopLevelCategory(tx, groupNumber)
+
+      return tx.category.create({
+        data: {
+          name,
+          slug,
+          description,
+          image,
+          order,
+          groupNumber: finalGroupNumber,
+          parentId,
         },
-        children: true,
-        _count: {
-          select: { products: true },
+        include: {
+          parent: {
+            select: { id: true, name: true, slug: true },
+          },
+          children: true,
+          _count: {
+            select: { products: true },
+          },
         },
-      },
+      })
     })
 
     return NextResponse.json(category, { status: 201 })
