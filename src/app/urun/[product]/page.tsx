@@ -97,6 +97,7 @@ export default async function ProductPage({
       <Header />
       <main>
         <ProductDetail
+          key={product.id}
           product={product}
           relatedProducts={relatedProducts}
           whatsappNumber={settings.whatsappNumber}

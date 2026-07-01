@@ -22,6 +22,11 @@ interface FeaturedProduct {
     name: string
     slug: string
     groupNumber: number
+    parent?: {
+      id: string
+      name: string
+      slug: string
+    } | null
   }
 }
 
@@ -84,7 +89,10 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
           ref={scrollRef}
           className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
         >
-          {products.map((product, index) => (
+          {products.map((product, index) => {
+            const topCategory = product.category.parent ?? product.category
+
+            return (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, x: 30 }}
@@ -122,7 +130,7 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
 
                 <CardContent className="p-4 flex flex-col gap-3 flex-1">
                   <span className="text-xs text-[#a67c52] font-medium bg-[#a67c52]/10 px-2 py-1 rounded-full self-start">
-                    {product.category.name}
+                    {topCategory.name}
                   </span>
 
                   <Link
@@ -150,7 +158,8 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </section>

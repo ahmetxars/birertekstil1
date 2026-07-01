@@ -1,5 +1,5 @@
 import type { Metadata } from 'next'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import Header from '@/components/layout/Header'
 import Footer from '@/components/layout/Footer'
 import CategoryProducts from '@/components/sections/CategoryProducts'
@@ -26,20 +26,22 @@ export async function generateMetadata({
     }
   }
 
+  const displayCategory = category.parent ?? category
+
   return {
-    title: `${category.name} Kategorisi`,
+    title: `${displayCategory.name} Kategorisi`,
     description:
-      category.description ||
-      `${category.name} kategorisindeki alt kategori ve ürünleri inceleyin, WhatsApp ile hızlı fiyat alın.`,
+      displayCategory.description ||
+      `${displayCategory.name} kategorisindeki ürünleri inceleyin, WhatsApp ile hızlı fiyat alın.`,
     alternates: {
-      canonical: buildCategoryPath(category.slug),
+      canonical: buildCategoryPath(displayCategory.slug),
     },
     openGraph: {
-      title: `${category.name} | ${SITE_NAME}`,
+      title: `${displayCategory.name} | ${SITE_NAME}`,
       description:
-        category.description ||
-        `${category.name} kategorisindeki alt kategori ve ürünleri inceleyin, teklif alın.`,
-      url: `${SITE_URL}${buildCategoryPath(category.slug)}`,
+        displayCategory.description ||
+        `${displayCategory.name} kategorisindeki ürünleri inceleyin, teklif alın.`,
+      url: `${SITE_URL}${buildCategoryPath(displayCategory.slug)}`,
     },
   }
 }
@@ -54,6 +56,10 @@ export default async function CategoryPage({
 
   if (!category) {
     notFound()
+  }
+
+  if (category.parent) {
+    redirect(buildCategoryPath(category.parent.slug))
   }
 
   const products = await getCategoryProducts(category.id)
@@ -73,7 +79,6 @@ export default async function CategoryPage({
       <main>
         <CategoryProducts
           category={category}
-          childCategories={category.children}
           products={products}
           whatsappNumber={settings.whatsappNumber}
         />

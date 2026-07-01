@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowLeft, ChevronRight, Home, Star } from 'lucide-react'
@@ -43,27 +43,16 @@ export default function ProductDetail({
   relatedProducts,
   whatsappNumber,
 }: ProductDetailProps) {
+  const topCategory = product.category.parent ?? product.category
   const galleryImages = product.images?.length ? product.images : product.image ? [product.image] : []
-  const [selectedImage, setSelectedImage] = useState(galleryImages[0] || '')
+  const [selectedImage, setSelectedImage] = useState('')
   const [failedImages, setFailedImages] = useState<string[]>([])
 
-  useEffect(() => {
-    setSelectedImage(galleryImages[0] || '')
-    setFailedImages([])
-  }, [product.id, product.image, product.images])
-
   const visibleImages = galleryImages.filter((image) => !failedImages.includes(image))
-
-  useEffect(() => {
-    if (!selectedImage && visibleImages.length > 0) {
-      setSelectedImage(visibleImages[0])
-      return
-    }
-
-    if (selectedImage && !visibleImages.includes(selectedImage)) {
-      setSelectedImage(visibleImages[0] || '')
-    }
-  }, [selectedImage, visibleImages])
+  const activeImage =
+    selectedImage && visibleImages.includes(selectedImage)
+      ? selectedImage
+      : visibleImages[0] || ''
 
   const handleImageError = (image: string) => {
     setFailedImages((prev) => (prev.includes(image) ? prev : [...prev, image]))
@@ -81,30 +70,19 @@ export default function ProductDetail({
             <Home className="h-4 w-4" />
             Ana Sayfa
           </Link>
-          {product.category.parent && (
-            <>
-              <ChevronRight className="h-4 w-4" />
-              <Link
-                href={buildCategoryPath(product.category.parent.slug)}
-                className="hover:text-[#a67c52] transition-colors"
-              >
-                {product.category.parent.name}
-              </Link>
-            </>
-          )}
           <ChevronRight className="h-4 w-4" />
           <Link
-            href={buildCategoryPath(product.category.slug)}
+            href={buildCategoryPath(topCategory.slug)}
             className="hover:text-[#a67c52] transition-colors"
           >
-            {product.category.name}
+            {topCategory.name}
           </Link>
           <ChevronRight className="h-4 w-4" />
           <span className="text-[#3d2c1e] font-medium truncate max-w-[200px]">{product.name}</span>
         </motion.nav>
 
         <Button asChild variant="ghost" className="text-[#8b7355] hover:text-[#a67c52] mb-6 -ml-2">
-          <Link href={buildCategoryPath(product.category.slug)}>
+          <Link href={buildCategoryPath(topCategory.slug)}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             Kategoriye Dön
           </Link>
@@ -117,15 +95,15 @@ export default function ProductDetail({
             transition={{ duration: 0.5 }}
           >
             <div className="relative w-full aspect-square max-h-[500px] bg-[#f0ebe3] rounded-2xl overflow-hidden border border-[#e8e0d4]">
-              {selectedImage ? (
+              {activeImage ? (
                 <Image
-                  src={selectedImage}
+                  src={activeImage}
                   alt={`${product.name} ürün görseli`}
                   fill
                   className={product.inStock ? 'object-cover' : 'object-cover grayscale brightness-50'}
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   priority
-                  onError={() => handleImageError(selectedImage)}
+                  onError={() => handleImageError(activeImage)}
                 />
               ) : (
                 <div className="absolute inset-0 flex items-center justify-center">
@@ -150,7 +128,7 @@ export default function ProductDetail({
                       type="button"
                       onClick={() => setSelectedImage(image)}
                       className={`relative h-20 w-20 overflow-hidden rounded-xl border transition-all ${
-                        selectedImage === image
+                        activeImage === image
                           ? 'border-[#a67c52] ring-2 ring-[#a67c52]/20'
                           : 'border-[#e8e0d4] hover:border-[#c9b08d]'
                       }`}
@@ -177,7 +155,7 @@ export default function ProductDetail({
             className="flex flex-col"
           >
             <Badge className="self-start bg-[#a67c52]/10 text-[#a67c52] border-[#a67c52]/20 mb-4 px-3 py-1">
-              {product.category.name}
+              {topCategory.name}
             </Badge>
 
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-[#3d2c1e] mb-4">

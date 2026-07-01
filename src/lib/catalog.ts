@@ -56,6 +56,13 @@ export async function getFeaturedProducts() {
           name: true,
           slug: true,
           groupNumber: true,
+          parent: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
         },
       },
     },
@@ -186,6 +193,7 @@ export async function getRelatedProducts(categoryId: string, excludeId: string) 
 
 export async function getAllCategorySlugs() {
   return db.category.findMany({
+    where: { parentId: null },
     select: { slug: true },
     orderBy: [{ groupNumber: 'asc' }, { order: 'asc' }],
   })

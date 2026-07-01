@@ -187,6 +187,9 @@ export default function CategoriesSection({ categories }: { categories: HomeCate
             {filteredCategories.map((category, index) => {
               const bgImages = categoryBgImages[category.groupNumber] || categoryBgImages[1]
               const primaryImage = category.image || bgImages[0]
+              const totalProductCount =
+                category._count.products +
+                category.children.reduce((sum, child) => sum + child._count.products, 0)
 
               return (
                 <motion.div
@@ -217,23 +220,8 @@ export default function CategoriesSection({ categories }: { categories: HomeCate
                     </div>
 
                     <div className="absolute top-4 right-4 bg-white/90 backdrop-blur-sm px-3 py-1 rounded-full text-xs font-medium text-[#3d2c1e] z-10">
-                      {category.children.length > 0
-                        ? `${category.children.length} alt kategori`
-                        : `${category._count.products} ürün`}
+                      {totalProductCount} ürün
                     </div>
-
-                    {category.children.length > 0 && (
-                      <div className="absolute top-14 right-4 flex flex-wrap gap-1.5 z-10 max-w-[55%] justify-end">
-                        {category.children.slice(0, 3).map((child) => (
-                          <span
-                            key={child.id}
-                            className="rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-medium text-[#3d2c1e]"
-                          >
-                            {child.name}
-                          </span>
-                        ))}
-                      </div>
-                    )}
 
                     <div className="absolute bottom-0 left-0 right-0 p-5 z-10">
                       <h3 className="text-lg font-bold text-white mb-1.5 line-clamp-2 group-hover:text-[#a67c52] transition-colors">
@@ -245,9 +233,7 @@ export default function CategoriesSection({ categories }: { categories: HomeCate
                         </p>
                       )}
                       <div className="flex items-center text-white/80 group-hover:text-[#a67c52] transition-colors text-sm font-medium">
-                        <span>
-                          {category.children.length > 0 ? 'Alt kategorileri gör' : 'Kategoriye git'}
-                        </span>
+                        <span>Ürünleri gör</span>
                         <ArrowRight className="h-4 w-4 ml-2 group-hover:translate-x-1 transition-transform" />
                       </div>
                     </div>

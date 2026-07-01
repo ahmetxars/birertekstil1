@@ -4,13 +4,19 @@ import { useEffect, useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Search, X, ArrowLeft } from 'lucide-react'
 import Image from 'next/image'
+import { buildProductPath } from '@/lib/site'
 
 interface Product {
   id: string
   name: string
   description: string | null
   image: string
-  category: { id: string; name: string; slug: string }
+  category: {
+    id: string
+    name: string
+    slug: string
+    parent?: { id: string; name: string; slug: string } | null
+  }
 }
 
 function SearchContent() {
@@ -137,7 +143,7 @@ function SearchContent() {
               {results.map((product) => (
                 <div
                   key={product.id}
-                  onClick={() => router.push(`/urunler/${product.category.slug}/${product.id}`)}
+                  onClick={() => router.push(buildProductPath(product.name, product.id))}
                   className="group cursor-pointer overflow-hidden rounded-xl border border-[#e8e0d4] bg-white transition-all hover:shadow-md"
                 >
                   <div className="relative h-40 w-full bg-[#f0ebe3]">
@@ -168,7 +174,9 @@ function SearchContent() {
                     )}
                   </div>
                   <div className="p-3">
-                    <p className="mb-1 truncate text-xs text-[#a67c52]">{product.category.name}</p>
+                    <p className="mb-1 truncate text-xs text-[#a67c52]">
+                      {(product.category.parent ?? product.category).name}
+                    </p>
                     <p className="line-clamp-2 text-sm font-medium text-[#3d2c1e] transition-colors group-hover:text-[#a67c52]">
                       {product.name}
                     </p>
