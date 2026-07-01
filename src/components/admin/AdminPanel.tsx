@@ -737,8 +737,8 @@ export default function AdminPanel() {
       return (a.order || 0) - (b.order || 0)
     })
 
-  const leafCategories = categories
-    .filter((category) => !category.children?.length)
+  const productCategories = categories
+    .filter((category) => !category.parentId)
     .sort((a, b) => {
       if (a.groupNumber !== b.groupNumber) {
         return a.groupNumber - b.groupNumber
@@ -754,6 +754,18 @@ export default function AdminPanel() {
   const totalCategories = categories.length
   const totalFeatured = products.filter((p) => p.featured).length
   const canSeedDemoData = totalProducts === 0 && totalCategories === 0
+
+  useEffect(() => {
+    if (!productDialogOpen || !productForm.categoryId) return
+
+    const selectedCategory = productCategories.find(
+      (category) => category.id === productForm.categoryId
+    )
+
+    if (!selectedCategory) {
+      setProductForm((prev) => ({ ...prev, categoryId: '' }))
+    }
+  }, [productCategories, productDialogOpen, productForm.categoryId])
 
   /* ================================================================ */
   /*  Sidebar Content (shared between desktop & mobile sheet)          */
@@ -1999,10 +2011,9 @@ export default function AdminPanel() {
                     <SelectValue placeholder="Kategori seçiniz" />
                   </SelectTrigger>
                   <SelectContent>
-                    {leafCategories.map((cat) => (
+                    {productCategories.map((cat) => (
                       <SelectItem key={cat.id} value={cat.id}>
-                        {cat.groupNumber}. {cat.parent ? `${cat.parent.name} / ` : ''}
-                        {cat.name}
+                        {cat.groupNumber}. {cat.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
