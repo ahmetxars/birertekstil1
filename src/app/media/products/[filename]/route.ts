@@ -13,6 +13,30 @@ const CONTENT_TYPES: Record<string, string> = {
   '.gif': 'image/gif',
 }
 
+function toBinaryBody(data: unknown) {
+  if (data instanceof Uint8Array) {
+    return data
+  }
+
+  if (data instanceof ArrayBuffer) {
+    return new Uint8Array(data)
+  }
+
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(data)) {
+    return new Uint8Array(data)
+  }
+
+  if (typeof data === 'string') {
+    try {
+      return Uint8Array.from(Buffer.from(data, 'base64'))
+    } catch {
+      return null
+    }
+  }
+
+  return null
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ filename: string }> }
@@ -33,10 +57,17 @@ export async function GET(
     })
 
     if (asset) {
-      return new NextResponse(asset.data, {
+      const binary = toBinaryBody(asset.data)
+
+      if (!binary) {
+        throw new Error(`MediaAsset binary okunamadi: ${filename}`)
+      }
+
+      return new Response(binary, {
         status: 200,
         headers: {
           'Content-Type': asset.mimeType,
+          'Content-Length': String(binary.byteLength),
           'Cache-Control': 'public, max-age=31536000, immutable',
         },
       })
@@ -44,11 +75,17 @@ export async function GET(
 
     const file = await readUploadedFile(filename)
     const contentType = CONTENT_TYPES[extname(filename).toLowerCase()] || 'application/octet-stream'
+    const binary = toBinaryBody(file)
 
-    return new NextResponse(file, {
+    if (!binary) {
+      throw new Error(`Upload dosyasi binary olarak okunamadi: ${filename}`)
+    }
+
+    return new Response(binary, {
       status: 200,
       headers: {
         'Content-Type': contentType,
+        'Content-Length': String(binary.byteLength),
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     })
