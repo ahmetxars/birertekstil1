@@ -80,7 +80,6 @@ export default async function CategoryPage({
         <CategoryProducts
           category={category}
           products={products}
-          whatsappNumber={settings.whatsappNumber}
         />
       </main>
       <Footer settings={settings} />

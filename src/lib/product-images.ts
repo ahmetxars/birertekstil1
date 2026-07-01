@@ -1,6 +1,16 @@
+function normalizeProductImageUrl(image: string) {
+  if (image.startsWith('/media/products/')) {
+    return image.replace('/media/products/', '/uploads/products/')
+  }
+
+  return image
+}
+
 export function parseProductImages(value: unknown) {
   if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    return value
+      .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      .map(normalizeProductImageUrl)
   }
 
   if (typeof value !== 'string' || !value.trim()) {
@@ -10,7 +20,9 @@ export function parseProductImages(value: unknown) {
   try {
     const parsed = JSON.parse(value)
     return Array.isArray(parsed)
-      ? parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+      ? parsed
+          .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+          .map(normalizeProductImageUrl)
       : []
   } catch {
     return []
@@ -18,7 +30,7 @@ export function parseProductImages(value: unknown) {
 }
 
 export function buildProductImageGallery(primaryImage?: string | null, images?: unknown) {
-  return [primaryImage || '', ...parseProductImages(images)].filter(
+  return [normalizeProductImageUrl(primaryImage || ''), ...parseProductImages(images)].filter(
     (image, index, list): image is string => Boolean(image) && list.indexOf(image) === index
   )
 }
@@ -26,4 +38,3 @@ export function buildProductImageGallery(primaryImage?: string | null, images?: 
 export function serializeProductImages(images: string[]) {
   return JSON.stringify(images.filter((image, index, list) => Boolean(image) && list.indexOf(image) === index))
 }
-

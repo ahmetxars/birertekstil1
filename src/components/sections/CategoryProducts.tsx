@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Home } from 'lucide-react'
@@ -7,14 +8,16 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import Image from 'next/image'
-import TrackedExternalLink from '@/components/site/TrackedExternalLink'
 import { buildProductPath } from '@/lib/site'
+import type { ProductVariantOption } from '@/lib/product-variants'
 
 interface Product {
   id: string
   name: string
   description: string | null
   image: string
+  images: string[]
+  variantOptions: ProductVariantOption[]
   featured: boolean
   inStock: boolean
   category: {
@@ -40,13 +43,82 @@ interface Category {
 interface CategoryProductsProps {
   category: Category
   products: Product[]
-  whatsappNumber: string
+}
+
+function ProductListCard({ product }: { product: Product }) {
+  const productHref = buildProductPath(product.name, product.id)
+  const [imageIndex, setImageIndex] = useState(0)
+  const gallery = product.images?.length ? product.images : product.image ? [product.image] : []
+  const activeImage = gallery[imageIndex] || product.image || ''
+  const variantCount = product.variantOptions?.length || gallery.length
+
+  const handleImageError = () => {
+    setImageIndex((prev) => (prev < gallery.length - 1 ? prev + 1 : prev))
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="h-full"
+    >
+      <Card className="overflow-hidden border-[#e8e0d4] transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
+        <Link href={productHref} className="group block h-full">
+          <div className="relative h-80 bg-[#f0ebe3] sm:h-96">
+            {activeImage ? (
+              <Image
+                src={activeImage}
+                alt={`${product.name} ürün görseli`}
+                fill
+                className={`object-cover transition-transform duration-700 group-hover:scale-[1.03] ${
+                  product.inStock ? '' : 'grayscale brightness-50'
+                }`}
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                onError={handleImageError}
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-sm text-[#8b7355]">Ürün görseli hazırlanıyor</span>
+              </div>
+            )}
+
+            <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-4">
+              {product.featured ? (
+                <Badge className="bg-[#a67c52] text-white shadow-sm">Öne Çıkan</Badge>
+              ) : <span />}
+              {variantCount > 1 && (
+                <Badge className="border-0 bg-white/95 text-[#3d2c1e] shadow-sm">
+                  +{variantCount - 1} renk
+                </Badge>
+              )}
+            </div>
+
+            {!product.inStock && (
+              <div className="absolute inset-x-0 bottom-0 bg-red-600 px-3 py-2 text-center text-xs font-bold tracking-[0.2em] text-white">
+                STOK YOK
+              </div>
+            )}
+          </div>
+
+          <CardContent className="space-y-3 p-5">
+            <h2 className="text-2xl font-semibold leading-tight text-[#3d2c1e] transition-colors group-hover:text-[#a67c52]">
+              {product.name}
+            </h2>
+            {product.description && (
+              <p className="line-clamp-4 text-base leading-relaxed text-[#8b7355]">
+                {product.description}
+              </p>
+            )}
+          </CardContent>
+        </Link>
+      </Card>
+    </motion.div>
+  )
 }
 
 export default function CategoryProducts({
   category,
   products,
-  whatsappNumber,
 }: CategoryProductsProps) {
   return (
     <div className="min-h-screen">
@@ -93,73 +165,8 @@ export default function CategoryProducts({
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products.map((product, index) => (
-              <motion.div
-                key={product.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.08, duration: 0.4 }}
-              >
-                <Card className="overflow-hidden border-[#e8e0d4] hover:shadow-lg transition-all group h-full flex flex-col">
-                  <Link href={buildProductPath(product.name, product.id)} className="relative w-full h-64 bg-[#f0ebe3] overflow-hidden block">
-                    {product.image ? (
-                      <Image
-                        src={product.image}
-                        alt={`${product.name} ürün görseli`}
-                        fill
-                        className={`object-cover transition-transform duration-500 group-hover:scale-105 ${
-                          product.inStock ? '' : 'grayscale brightness-50'
-                        }`}
-                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xs text-[#8b7355]">Ürün Görseli</span>
-                      </div>
-                    )}
-                    {product.featured && (
-                      <Badge className="absolute top-3 left-3 bg-[#a67c52] text-white">
-                        Öne Çıkan
-                      </Badge>
-                    )}
-                    {!product.inStock && (
-                      <div className="absolute inset-x-0 bottom-0 bg-red-600 px-3 py-2 text-center text-xs font-bold tracking-[0.2em] text-white">
-                        STOK YOK
-                      </div>
-                    )}
-                  </Link>
-
-                  <CardContent className="p-4 flex flex-col gap-3 flex-1">
-                    <Link
-                      href={buildProductPath(product.name, product.id)}
-                      className="font-semibold text-[#3d2c1e] group-hover:text-[#a67c52] transition-colors line-clamp-2"
-                    >
-                      {product.name}
-                    </Link>
-                    {product.description && (
-                      <p className="text-sm text-[#8b7355] line-clamp-3 flex-1">
-                        {product.description}
-                      </p>
-                    )}
-                    <div className="flex flex-col gap-2 mt-auto">
-                      <Button asChild variant="outline" className="border-[#e8e0d4] hover:bg-[#f8f5f0]">
-                        <Link href={buildProductPath(product.name, product.id)}>Ürünü incele</Link>
-                      </Button>
-                      <TrackedExternalLink
-                        href={`https://wa.me/${whatsappNumber.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Merhaba, ${product.name} ürünü için fiyat almak istiyorum.`)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        leadType="whatsapp"
-                        leadLabel={`category_${product.category.slug}_${product.id}`}
-                        className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white"
-                        style={{ backgroundColor: '#25D366' }}
-                      >
-                        WhatsApp ile fiyat sor
-                      </TrackedExternalLink>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
+            {products.map((product) => (
+              <ProductListCard key={product.id} product={product} />
             ))}
           </div>
         )}
