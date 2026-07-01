@@ -25,7 +25,7 @@ function getStorageCandidates() {
 }
 
 export function getPublicUploadUrl(filename: string) {
-  return `/uploads/products/${filename}`
+  return `/media/products/${filename}`
 }
 
 export function getExtensionForMimeType(mimeType: string) {

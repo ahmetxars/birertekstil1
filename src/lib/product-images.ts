@@ -1,6 +1,10 @@
 function normalizeProductImageUrl(image: string) {
   if (image.startsWith('/media/products/')) {
-    return image.replace('/media/products/', '/uploads/products/')
+    return image
+  }
+
+  if (image.startsWith('/uploads/products/')) {
+    return image.replace('/uploads/products/', '/media/products/')
   }
 
   return image

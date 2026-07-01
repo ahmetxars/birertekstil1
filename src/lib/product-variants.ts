@@ -4,6 +4,18 @@ export interface ProductVariantOption {
   inStock: boolean
 }
 
+function normalizeVariantImageUrl(image: string) {
+  if (image.startsWith('/media/products/')) {
+    return image
+  }
+
+  if (image.startsWith('/uploads/products/')) {
+    return image.replace('/uploads/products/', '/media/products/')
+  }
+
+  return image
+}
+
 function sanitizeLabel(value: unknown, fallback: string) {
   if (typeof value !== 'string') return fallback
   const trimmed = value.trim()
@@ -32,7 +44,10 @@ export function parseProductVariantOptions(value: unknown, gallery: string[]) {
   }
 
   return normalizedGallery.map((image, index) => {
-    const existing = parsedOptions.find((option) => option.image === image)
+    const existing = parsedOptions.find(
+      (option) =>
+        typeof option.image === 'string' && normalizeVariantImageUrl(option.image) === image
+    )
 
     return {
       image,
