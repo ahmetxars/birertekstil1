@@ -74,7 +74,8 @@ export default async function ProductPage({
     notFound()
   }
 
-  const relatedProducts = await getRelatedProducts(product.category.id, product.id)
+  const topCategoryId = product.category.parent?.id || product.category.id
+  const relatedProducts = await getRelatedProducts(topCategoryId, product.id)
 
   return (
     <>

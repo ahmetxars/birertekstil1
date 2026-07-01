@@ -36,8 +36,10 @@ model Product {
   id          String        @id @default(cuid())
   name        String
   description String?
+  usageAreas  String?
   image       String        @default("")
   images      String        @default("[]")
+  variantOptions String     @default("[]")
   categoryId  String
   category    Category      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   brandId     String?

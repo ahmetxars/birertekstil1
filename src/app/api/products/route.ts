@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { buildProductImageGallery, serializeProductImages } from '@/lib/product-images'
+import {
+  parseProductVariantOptions,
+  serializeProductVariantOptions,
+} from '@/lib/product-variants'
 
 function isAuthorized(request: NextRequest) {
   return isValidAdminSessionToken(request.cookies.get(ADMIN_SESSION_COOKIE)?.value)
@@ -11,11 +15,15 @@ function normalizeProductResponse<
   T extends {
     image: string
     images: string
+    variantOptions: string
   },
 >(product: T) {
+  const gallery = buildProductImageGallery(product.image, product.images)
+
   return {
     ...product,
-    images: buildProductImageGallery(product.image, product.images),
+    images: gallery,
+    variantOptions: parseProductVariantOptions(product.variantOptions, gallery),
   }
 }
 
@@ -67,7 +75,18 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
-    const { name, description, image, images, categoryId, featured, inStock, order } = body
+    const {
+      name,
+      description,
+      usageAreas,
+      image,
+      images,
+      variantOptions,
+      categoryId,
+      featured,
+      inStock,
+      order,
+    } = body
 
     if (!name || !categoryId) {
       return NextResponse.json({ error: 'Ad ve kategori alanları zorunludur' }, { status: 400 })
@@ -79,8 +98,10 @@ export async function POST(request: NextRequest) {
       data: {
         name,
         description: description || null,
+        usageAreas: usageAreas || null,
         image: gallery[0] || image || '',
         images: serializeProductImages(gallery),
+        variantOptions: serializeProductVariantOptions(variantOptions || [], gallery),
         categoryId,
         featured: featured || false,
         inStock: inStock ?? true,

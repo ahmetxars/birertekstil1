@@ -72,6 +72,7 @@ import {
 import { useStore, type AdminTab } from '@/store/useStore'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import type { ProductVariantOption } from '@/lib/product-variants'
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -95,8 +96,10 @@ interface Product {
   id: string
   name: string
   description: string | null
+  usageAreas?: string | null
   image: string
   images: string[]
+  variantOptions: ProductVariantOption[]
   categoryId: string
   featured: boolean
   inStock: boolean
@@ -107,8 +110,10 @@ interface Product {
 interface ProductFormData {
   name: string
   description: string
+  usageAreas: string
   image: string
   images: string[]
+  variantOptions: ProductVariantOption[]
   categoryId: string
   featured: boolean
   inStock: boolean
@@ -158,8 +163,10 @@ const sidebarItems: {
 const emptyProductForm: ProductFormData = {
   name: '',
   description: '',
+  usageAreas: '',
   image: '',
   images: [],
+  variantOptions: [],
   categoryId: '',
   featured: false,
   inStock: true,
@@ -327,8 +334,10 @@ export default function AdminPanel() {
     setProductForm({
       name: product.name,
       description: product.description || '',
+      usageAreas: product.usageAreas || '',
       image: product.image,
       images: product.images?.length ? product.images : product.image ? [product.image] : [],
+      variantOptions: product.variantOptions || [],
       categoryId: product.categoryId,
       featured: product.featured,
       inStock: product.inStock,
@@ -345,10 +354,36 @@ export default function AdminPanel() {
 
   const syncProductImages = (images: string[]) => {
     const uniqueImages = images.filter((image, index, list) => Boolean(image) && list.indexOf(image) === index)
+    setProductForm((prev) => {
+      const nextVariantOptions = uniqueImages.map((image, index) => {
+        const existing = prev.variantOptions.find((option) => option.image === image)
+
+        return existing || {
+          image,
+          label: `Renk ${index + 1}`,
+          inStock: true,
+        }
+      })
+
+      return {
+        ...prev,
+        image: uniqueImages[0] || '',
+        images: uniqueImages,
+        variantOptions: nextVariantOptions,
+      }
+    })
+  }
+
+  const updateVariantOption = (
+    image: string,
+    field: keyof Omit<ProductVariantOption, 'image'>,
+    value: string | boolean
+  ) => {
     setProductForm((prev) => ({
       ...prev,
-      image: uniqueImages[0] || '',
-      images: uniqueImages,
+      variantOptions: prev.variantOptions.map((option) =>
+        option.image === image ? { ...option, [field]: value } : option
+      ),
     }))
   }
 
@@ -472,8 +507,10 @@ export default function AdminPanel() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...productForm,
+          usageAreas: productForm.usageAreas,
           image: productForm.images[0] || productForm.image,
           images: productForm.images,
+          variantOptions: productForm.variantOptions,
         }),
       })
 
@@ -2038,6 +2075,22 @@ export default function AdminPanel() {
               />
             </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="prod-usage" className="text-[#3d2c1e]">
+                Kullanim Alanlari
+              </Label>
+              <Textarea
+                id="prod-usage"
+                value={productForm.usageAreas}
+                onChange={(e) =>
+                  setProductForm({ ...productForm, usageAreas: e.target.value })
+                }
+                placeholder="Ornek: Minder kilifi, perde, masa ortusu"
+                rows={2}
+                className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20 resize-none"
+              />
+            </div>
+
             {/* Image Upload */}
             <div className="space-y-3">
               <Label className="text-[#3d2c1e]">Ürün Görseli</Label>
@@ -2118,6 +2171,58 @@ export default function AdminPanel() {
                   <p className="text-xs text-[#8b7355]">
                     Kucuk gorselleri tiklayarak kapak gorselini degistirebilirsin.
                   </p>
+                </div>
+              )}
+              {productForm.variantOptions.length > 0 && (
+                <div className="space-y-3 rounded-xl border border-[#e8e0d4] bg-[#f8f5f0] p-4">
+                  <p className="text-xs font-medium uppercase tracking-[0.18em] text-[#8b7355]">
+                    Renk ve Stok Durumu
+                  </p>
+                  <div className="space-y-3">
+                    {productForm.variantOptions.map((option, index) => (
+                      <div
+                        key={`${option.image}-${index}`}
+                        className="grid grid-cols-1 gap-3 rounded-lg bg-white p-3 md:grid-cols-[64px_1fr_auto]"
+                      >
+                        <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-[#e8e0d4]">
+                          <Image
+                            src={option.image}
+                            alt={`Renk secenegi ${index + 1}`}
+                            fill
+                            className="object-cover"
+                            sizes="64px"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label className="text-xs text-[#8b7355]">Renk Adi</Label>
+                          <Input
+                            value={option.label}
+                            onChange={(e) =>
+                              updateVariantOption(option.image, 'label', e.target.value)
+                            }
+                            placeholder={`Renk ${index + 1}`}
+                            className="border-[#e8e0d4] focus:border-[#a67c52] focus:ring-[#a67c52]/20"
+                          />
+                        </div>
+                        <div className="flex items-center gap-2 self-end md:self-center">
+                          <Checkbox
+                            id={`variant-stock-${index}`}
+                            checked={option.inStock}
+                            onCheckedChange={(checked) =>
+                              updateVariantOption(option.image, 'inStock', checked === true)
+                            }
+                            className="border-[#e8e0d4] data-[state=checked]:bg-emerald-600 data-[state=checked]:border-emerald-600"
+                          />
+                          <Label
+                            htmlFor={`variant-stock-${index}`}
+                            className="cursor-pointer text-sm text-[#3d2c1e]"
+                          >
+                            Bu renk stokta
+                          </Label>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               <div className="flex items-center gap-3">

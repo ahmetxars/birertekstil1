@@ -10,14 +10,17 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import Image from 'next/image'
 import TrackedExternalLink from '@/components/site/TrackedExternalLink'
+import type { ProductVariantOption } from '@/lib/product-variants'
 import { buildCategoryPath, buildProductPath } from '@/lib/site'
 
 interface Product {
   id: string
   name: string
   description: string | null
+  usageAreas?: string | null
   image: string
   images: string[]
+  variantOptions: ProductVariantOption[]
   featured: boolean
   inStock: boolean
   category: {
@@ -38,6 +41,32 @@ interface ProductDetailProps {
   whatsappNumber: string
 }
 
+function extractUsageAreas(description?: string | null, usageAreas?: string | null) {
+  const explicitUsageAreas = usageAreas?.trim()
+  if (explicitUsageAreas) {
+    return {
+      descriptionText: description?.trim() || '',
+      usageAreasText: explicitUsageAreas,
+    }
+  }
+
+  if (!description) {
+    return { descriptionText: '', usageAreasText: '' }
+  }
+
+  const normalized = description.replace(/\s+/g, ' ').trim()
+  const match = normalized.match(/(.*?)(?:kullanım alanları\s*[:;-]\s*)(.*)/i)
+
+  if (!match) {
+    return { descriptionText: normalized, usageAreasText: '' }
+  }
+
+  return {
+    descriptionText: match[1]?.trim() || '',
+    usageAreasText: match[2]?.trim() || '',
+  }
+}
+
 export default function ProductDetail({
   product,
   relatedProducts,
@@ -47,12 +76,24 @@ export default function ProductDetail({
   const galleryImages = product.images?.length ? product.images : product.image ? [product.image] : []
   const [selectedImage, setSelectedImage] = useState('')
   const [failedImages, setFailedImages] = useState<string[]>([])
+  const { descriptionText, usageAreasText } = extractUsageAreas(
+    product.description,
+    product.usageAreas
+  )
 
   const visibleImages = galleryImages.filter((image) => !failedImages.includes(image))
   const activeImage =
     selectedImage && visibleImages.includes(selectedImage)
       ? selectedImage
       : visibleImages[0] || ''
+  const activeVariant =
+    product.variantOptions.find((option) => option.image === activeImage) ||
+    product.variantOptions[0] ||
+    null
+  const isActiveVariantInStock = activeVariant ? activeVariant.inStock : product.inStock
+  const whatsappMessage = activeVariant?.label
+    ? `Merhaba, ${product.name} urununun ${activeVariant.label} rengi icin fiyat almak istiyorum.`
+    : `Merhaba, ${product.name} ürünü için fiyat almak istiyorum.`
 
   const handleImageError = (image: string) => {
     setFailedImages((prev) => (prev.includes(image) ? prev : [...prev, image]))
@@ -100,7 +141,7 @@ export default function ProductDetail({
                   src={activeImage}
                   alt={`${product.name} ürün görseli`}
                   fill
-                  className={product.inStock ? 'object-cover' : 'object-cover grayscale brightness-50'}
+                  className={isActiveVariantInStock ? 'object-cover' : 'object-cover grayscale brightness-50'}
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   priority
                   onError={() => handleImageError(activeImage)}
@@ -115,6 +156,11 @@ export default function ProductDetail({
                   STOK YOK
                 </div>
               )}
+              {product.inStock && activeVariant && !activeVariant.inStock && (
+                <div className="absolute left-4 top-4 rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-lg">
+                  {activeVariant.label} bitti
+                </div>
+              )}
             </div>
             {visibleImages.length > 1 && (
               <div className="mt-4">
@@ -122,7 +168,11 @@ export default function ProductDetail({
                   Renk Seçenekleri
                 </p>
                 <div className="flex flex-wrap gap-3">
-                  {visibleImages.map((image, index) => (
+                  {visibleImages.map((image, index) => {
+                    const variant =
+                      product.variantOptions.find((option) => option.image === image) || null
+
+                    return (
                     <button
                       key={`${image}-${index}`}
                       type="button"
@@ -133,16 +183,25 @@ export default function ProductDetail({
                           : 'border-[#e8e0d4] hover:border-[#c9b08d]'
                       }`}
                     >
-                      <Image
-                        src={image}
-                        alt={`${product.name} renk secenegi ${index + 1}`}
-                        fill
-                        className="object-cover"
-                        sizes="80px"
-                        onError={() => handleImageError(image)}
-                      />
+                        <Image
+                          src={image}
+                          alt={`${product.name} renk secenegi ${index + 1}`}
+                          fill
+                          className={variant?.inStock === false ? 'object-cover grayscale brightness-75' : 'object-cover'}
+                          sizes="80px"
+                          onError={() => handleImageError(image)}
+                        />
+                        {variant?.inStock === false && (
+                          <span className="absolute inset-x-1 bottom-1 rounded-full bg-red-600 px-1 py-0.5 text-[9px] font-semibold text-white">
+                            Bitti
+                          </span>
+                        )}
+                        <span className="absolute left-1 top-1 rounded-full bg-black/65 px-1.5 py-0.5 text-[9px] text-white">
+                          {variant?.label || `Renk ${index + 1}`}
+                        </span>
                     </button>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -174,22 +233,36 @@ export default function ProductDetail({
                 STOK YOK
               </Badge>
             )}
+            {product.inStock && activeVariant && !activeVariant.inStock && (
+              <Badge className="mb-4 self-start border-0 bg-red-100 px-3 py-1 text-red-700">
+                Secili renk stokta degil
+              </Badge>
+            )}
 
             <Separator className="my-4 bg-[#e8e0d4]" />
 
-            <div className="mb-8">
+            <div className="mb-6">
               <h2 className="text-sm font-semibold text-[#3d2c1e] uppercase tracking-wider mb-3">
                 Ürün Açıklaması
               </h2>
               <p className="text-[#8b7355] leading-relaxed">
-                {product.description ||
+                {descriptionText ||
                   'Bu ürün için fiyat, kullanım alanı ve sipariş detaylarını WhatsApp üzerinden hızlıca öğrenebilirsiniz.'}
               </p>
             </div>
 
+            {usageAreasText && (
+              <div className="mb-8">
+                <h2 className="text-sm font-semibold text-[#3d2c1e] uppercase tracking-wider mb-3">
+                  Kullanim Alanlari
+                </h2>
+                <p className="text-[#8b7355] leading-relaxed">{usageAreasText}</p>
+              </div>
+            )}
+
             <div className="mt-auto space-y-3">
               <TrackedExternalLink
-                href={`https://wa.me/${whatsappNumber.replace(/[^\d]/g, '')}?text=${encodeURIComponent(`Merhaba, ${product.name} ürünü için fiyat almak istiyorum.`)}`}
+                href={`https://wa.me/${whatsappNumber.replace(/[^\d]/g, '')}?text=${encodeURIComponent(whatsappMessage)}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 leadType="whatsapp"
@@ -199,6 +272,11 @@ export default function ProductDetail({
               >
                 WhatsApp ile fiyat sor
               </TrackedExternalLink>
+              {activeVariant?.label && (
+                <p className="text-xs text-center text-[#8b7355]">
+                  Secili renk: <span className="font-medium text-[#3d2c1e]">{activeVariant.label}</span>
+                </p>
+              )}
               <p className="text-xs text-center text-[#8b7355]">
                 Ürünün fiyat ve stok bilgisini aynı gün içinde iletebiliriz
               </p>

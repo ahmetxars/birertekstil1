@@ -1,5 +1,6 @@
 import { db } from '@/lib/db'
 import { buildProductImageGallery } from '@/lib/product-images'
+import { parseProductVariantOptions } from '@/lib/product-variants'
 import { extractProductIdFromParam } from '@/lib/site'
 import { unstable_noStore as noStore } from 'next/cache'
 
@@ -7,11 +8,15 @@ function normalizeProductGallery<
   T extends {
     image: string
     images: string
+    variantOptions: string
   },
 >(product: T) {
+  const gallery = buildProductImageGallery(product.image, product.images)
+
   return {
     ...product,
-    images: buildProductImageGallery(product.image, product.images),
+    images: gallery,
+    variantOptions: parseProductVariantOptions(product.variantOptions, gallery),
   }
 }
 
@@ -46,7 +51,7 @@ export async function getHomepageCategories() {
 }
 
 export async function getFeaturedProducts() {
-  return db.product.findMany({
+  const products = await db.product.findMany({
     where: { featured: true },
     orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
     include: {
@@ -67,6 +72,8 @@ export async function getFeaturedProducts() {
       },
     },
   })
+
+  return products.map(normalizeProductGallery)
 }
 
 export async function getCategoryBySlug(slug: string) {
@@ -79,6 +86,7 @@ export async function getCategoryBySlug(slug: string) {
           name: true,
           slug: true,
           groupNumber: true,
+          description: true,
         },
       },
       children: {
@@ -111,7 +119,7 @@ export async function getCategoryProducts(categoryId: string) {
     ? [category.id, ...category.children.map((child) => child.id)]
     : [categoryId]
 
-  return db.product.findMany({
+  const products = await db.product.findMany({
     where: {
       categoryId: {
         in: categoryIds,
@@ -136,6 +144,8 @@ export async function getCategoryProducts(categoryId: string) {
       },
     },
   })
+
+  return products.map(normalizeProductGallery)
 }
 
 export async function getProductByRouteParam(param: string) {
@@ -164,9 +174,25 @@ export async function getProductByRouteParam(param: string) {
 }
 
 export async function getRelatedProducts(categoryId: string, excludeId: string) {
-  return db.product.findMany({
+  const category = await db.category.findUnique({
+    where: { id: categoryId },
+    select: {
+      id: true,
+      children: {
+        select: { id: true },
+      },
+    },
+  })
+
+  const categoryIds = category
+    ? [category.id, ...category.children.map((child) => child.id)]
+    : [categoryId]
+
+  const products = await db.product.findMany({
     where: {
-      categoryId,
+      categoryId: {
+        in: categoryIds,
+      },
       NOT: { id: excludeId },
     },
     orderBy: [{ featured: 'desc' }, { order: 'asc' }, { createdAt: 'desc' }],
@@ -189,6 +215,8 @@ export async function getRelatedProducts(categoryId: string, excludeId: string) 
       },
     },
   })
+
+  return products.map(normalizeProductGallery)
 }
 
 export async function getAllCategorySlugs() {
