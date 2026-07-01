@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
-import {
-  moveTopLevelCategoryGroup,
-  resequenceGroupsAfterTopLevelDelete,
-  shiftGroupsForNewTopLevelCategory,
-} from '@/lib/category-groups'
+import { normalizeTopLevelCategoryGroups } from '@/lib/category-groups'
 import { db } from '@/lib/db'
 import { slugify } from '@/lib/site'
 
@@ -88,20 +84,7 @@ export async function PUT(
         throw new Error('TOP_LEVEL_WITH_CHILDREN_CANNOT_BE_NESTED')
       }
 
-      if (wasTopLevel && willBeTopLevel) {
-        groupNumber = await moveTopLevelCategoryGroup(
-          tx,
-          id,
-          existingCategory.groupNumber,
-          requestedGroupNumber
-        )
-      } else if (!wasTopLevel && willBeTopLevel) {
-        groupNumber = await shiftGroupsForNewTopLevelCategory(tx, requestedGroupNumber)
-      } else if (wasTopLevel && !willBeTopLevel) {
-        await resequenceGroupsAfterTopLevelDelete(tx, existingCategory.groupNumber)
-      }
-
-      return tx.category.update({
+      const updatedCategory = await tx.category.update({
         where: { id },
         data: {
           name,
@@ -112,6 +95,28 @@ export async function PUT(
           order,
           groupNumber,
         },
+        include: {
+          parent: {
+            select: { id: true, name: true, slug: true },
+          },
+          children: true,
+          _count: {
+            select: { products: true },
+          },
+        },
+      })
+
+      if (willBeTopLevel) {
+        await normalizeTopLevelCategoryGroups(tx, {
+          movedCategoryId: id,
+          requestedGroupNumber,
+        })
+      } else if (wasTopLevel) {
+        await normalizeTopLevelCategoryGroups(tx)
+      }
+
+      return tx.category.findUniqueOrThrow({
+        where: { id: updatedCategory.id },
         include: {
           parent: {
             select: { id: true, name: true, slug: true },
@@ -191,7 +196,7 @@ export async function DELETE(
       })
 
       if (!category.parentId) {
-        await resequenceGroupsAfterTopLevelDelete(tx, category.groupNumber)
+        await normalizeTopLevelCategoryGroups(tx)
       }
     })
 

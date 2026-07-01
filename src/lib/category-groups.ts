@@ -2,108 +2,55 @@ import { Prisma } from '@prisma/client'
 
 type CategoryTx = Prisma.TransactionClient
 
-function clampGroupNumber(value: number, min: number, max: number) {
+interface NormalizeOptions {
+  movedCategoryId?: string
+  requestedGroupNumber?: number
+}
+
+function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
-export async function shiftGroupsForNewTopLevelCategory(
+export async function normalizeTopLevelCategoryGroups(
   tx: CategoryTx,
-  requestedGroupNumber: number
+  options: NormalizeOptions = {}
 ) {
-  const topLevelCount = await tx.category.count({
+  const topLevelCategories = await tx.category.findMany({
     where: { parentId: null },
-  })
-
-  const groupNumber = clampGroupNumber(requestedGroupNumber, 1, topLevelCount + 1)
-
-  await tx.category.updateMany({
-    where: {
-      groupNumber: {
-        gte: groupNumber,
-      },
-    },
-    data: {
-      groupNumber: {
-        increment: 1,
-      },
+    orderBy: [{ groupNumber: 'asc' }, { order: 'asc' }, { name: 'asc' }],
+    select: {
+      id: true,
+      groupNumber: true,
     },
   })
 
-  return groupNumber
-}
-
-export async function resequenceGroupsAfterTopLevelDelete(
-  tx: CategoryTx,
-  deletedGroupNumber: number
-) {
-  await tx.category.updateMany({
-    where: {
-      groupNumber: {
-        gt: deletedGroupNumber,
-      },
-    },
-    data: {
-      groupNumber: {
-        decrement: 1,
-      },
-    },
-  })
-}
-
-export async function moveTopLevelCategoryGroup(
-  tx: CategoryTx,
-  categoryId: string,
-  currentGroupNumber: number,
-  requestedGroupNumber: number
-) {
-  const topLevelCount = await tx.category.count({
-    where: { parentId: null },
-  })
-
-  const targetGroupNumber = clampGroupNumber(requestedGroupNumber, 1, topLevelCount)
-
-  if (targetGroupNumber === currentGroupNumber) {
-    return currentGroupNumber
+  if (!topLevelCategories.length) {
+    return
   }
 
-  if (targetGroupNumber < currentGroupNumber) {
-    await tx.category.updateMany({
-      where: {
-        groupNumber: {
-          gte: targetGroupNumber,
-          lt: currentGroupNumber,
-        },
-      },
-      data: {
-        groupNumber: {
-          increment: 1,
-        },
-      },
-    })
-  } else {
-    await tx.category.updateMany({
-      where: {
-        groupNumber: {
-          gt: currentGroupNumber,
-          lte: targetGroupNumber,
-        },
-      },
-      data: {
-        groupNumber: {
-          decrement: 1,
-        },
-      },
-    })
+  let orderedCategoryIds = topLevelCategories.map((category) => category.id)
+
+  if (options.movedCategoryId) {
+    const currentIndex = orderedCategoryIds.indexOf(options.movedCategoryId)
+
+    if (currentIndex !== -1) {
+      const [movedCategoryId] = orderedCategoryIds.splice(currentIndex, 1)
+      const requestedGroupNumber = options.requestedGroupNumber ?? topLevelCategories.length
+      const targetIndex = clamp(requestedGroupNumber, 1, topLevelCategories.length) - 1
+      orderedCategoryIds.splice(targetIndex, 0, movedCategoryId)
+    }
   }
 
-  await tx.category.updateMany({
-    where: {
-      OR: [{ id: categoryId }, { parentId: categoryId }],
-    },
-    data: {
-      groupNumber: targetGroupNumber,
-    },
-  })
-
-  return targetGroupNumber
+  await Promise.all(
+    orderedCategoryIds.map((categoryId, index) =>
+      tx.category.updateMany({
+        where: {
+          OR: [{ id: categoryId }, { parentId: categoryId }],
+        },
+        data: {
+          groupNumber: index + 1,
+        },
+      })
+    )
+  )
 }
