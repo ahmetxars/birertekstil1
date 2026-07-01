@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ADMIN_SESSION_COOKIE, isValidAdminSessionToken } from '@/lib/auth'
+import { db } from '@/lib/db'
 import {
   buildUploadFilename,
   getExtensionForMimeType,
@@ -41,6 +42,18 @@ export async function POST(request: NextRequest) {
     }
 
     await saveUploadedFile(filename, buffer)
+    await db.mediaAsset.upsert({
+      where: { filename },
+      update: {
+        mimeType: file.type,
+        data: buffer,
+      },
+      create: {
+        filename,
+        mimeType: file.type,
+        data: buffer,
+      },
+    })
 
     return NextResponse.json({ url: getPublicUploadUrl(filename) }, { status: 201 })
   } catch (error) {

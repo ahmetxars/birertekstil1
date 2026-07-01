@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { extname } from 'path'
+import { db } from '@/lib/db'
 import { readUploadedFile } from '@/lib/upload-storage'
 
 export const runtime = 'nodejs'
@@ -21,6 +22,24 @@ export async function GET(
 
     if (!filename || filename.includes('/') || filename.includes('\\') || filename.includes('..')) {
       return NextResponse.json({ error: 'Geçersiz dosya adı' }, { status: 400 })
+    }
+
+    const asset = await db.mediaAsset.findUnique({
+      where: { filename },
+      select: {
+        data: true,
+        mimeType: true,
+      },
+    })
+
+    if (asset) {
+      return new NextResponse(asset.data, {
+        status: 200,
+        headers: {
+          'Content-Type': asset.mimeType,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        },
+      })
     }
 
     const file = await readUploadedFile(filename)

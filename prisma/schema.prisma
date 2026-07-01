@@ -86,3 +86,11 @@ model SiteSettings {
   heroSubtitle   String @default("Birer Tekstil İstanbul")
   aboutText      String @default("Birer Tekstil olarak İstanbul'da 20 yılı aşkın süredir ev tekstili sektöründe faaliyet göstermekteyiz.")
 }
+
+model MediaAsset {
+  id        String   @id @default(cuid())
+  filename  String   @unique
+  mimeType  String
+  data      Bytes
+  createdAt DateTime @default(now())
+}
