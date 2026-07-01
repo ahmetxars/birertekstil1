@@ -67,6 +67,13 @@ function extractUsageAreas(description?: string | null, usageAreas?: string | nu
   }
 }
 
+function parseUsageAreaItems(value: string) {
+  return value
+    .split(/[-,;|•]+/g)
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 export default function ProductDetail({
   product,
   relatedProducts,
@@ -80,6 +87,7 @@ export default function ProductDetail({
     product.description,
     product.usageAreas
   )
+  const usageAreaItems = parseUsageAreaItems(usageAreasText)
 
   const visibleImages = galleryImages.filter((image) => !failedImages.includes(image))
   const activeImage =
@@ -251,12 +259,21 @@ export default function ProductDetail({
               </p>
             </div>
 
-            {usageAreasText && (
+            {usageAreaItems.length > 0 && (
               <div className="mb-8">
                 <h2 className="text-sm font-semibold text-[#3d2c1e] uppercase tracking-wider mb-3">
                   Kullanim Alanlari
                 </h2>
-                <p className="text-[#8b7355] leading-relaxed">{usageAreasText}</p>
+                <div className="flex flex-wrap gap-2.5">
+                  {usageAreaItems.map((item) => (
+                    <span
+                      key={item}
+                      className="inline-flex items-center rounded-full border border-[#e8e0d4] bg-[#f8f5f0] px-3 py-1.5 text-sm font-medium text-[#6f5a45]"
+                    >
+                      {item}
+                    </span>
+                  ))}
+                </div>
               </div>
             )}
 
