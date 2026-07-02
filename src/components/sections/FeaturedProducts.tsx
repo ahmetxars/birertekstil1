@@ -1,10 +1,7 @@
 'use client'
 
-import { useRef } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import Image from 'next/image'
 import TrackedExternalLink from '@/components/site/TrackedExternalLink'
@@ -36,16 +33,12 @@ interface FeaturedProductsProps {
 }
 
 export default function FeaturedProducts({ products, whatsappNumber }: FeaturedProductsProps) {
-  const scrollRef = useRef<HTMLDivElement>(null)
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (!scrollRef.current) return
-
-    scrollRef.current.scrollBy({
-      left: direction === 'left' ? -320 : 320,
-      behavior: 'smooth',
-    })
+  if (products.length === 0) {
+    return null
   }
+
+  const marqueeProducts = products.length > 1 ? [...products, ...products] : products
+  const animationDuration = Math.max(products.length * 8, 28)
 
   return (
     <section id="featured" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
@@ -65,41 +58,29 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
               Hızlı teklif almak için en çok ilgi gören ürünleri inceleyin
             </p>
           </div>
-          <div className="hidden sm:flex gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => scroll('left')}
-              className="border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3]"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => scroll('right')}
-              className="border-[#e8e0d4] text-[#3d2c1e] hover:bg-[#f0ebe3]"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
         </motion.div>
 
-        <div
-          ref={scrollRef}
-          className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide"
-        >
-          {products.map((product, index) => {
+        <div className="relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-white to-transparent sm:w-16" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white to-transparent sm:w-16" />
+
+          <div
+            className="flex w-max gap-4 pb-4 will-change-transform hover:[animation-play-state:paused]"
+            style={{
+              animation: products.length > 1 ? `featured-marquee ${animationDuration}s linear infinite` : 'none',
+            }}
+          >
+          {marqueeProducts.map((product, index) => {
             const topCategory = product.category.parent ?? product.category
 
             return (
             <motion.div
-              key={product.id}
+              key={`${product.id}-${index}`}
               initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: index * 0.1, duration: 0.4 }}
-              className="shrink-0 w-72 snap-start"
+              transition={{ delay: Math.min(index, products.length - 1) * 0.08, duration: 0.4 }}
+              className="w-[16.75rem] shrink-0 sm:w-72"
             >
               <Card className="overflow-hidden border-[#e8e0d4] hover:shadow-lg transition-shadow h-full flex flex-col">
                 <Link href={buildProductPath(product.name, product.id)} className="relative w-full h-56 bg-[#f0ebe3] overflow-hidden block">
@@ -160,8 +141,20 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
             </motion.div>
             )
           })}
+          </div>
         </div>
       </div>
+
+      <style jsx>{`
+        @keyframes featured-marquee {
+          0% {
+            transform: translate3d(0, 0, 0);
+          }
+          100% {
+            transform: translate3d(-50%, 0, 0);
+          }
+        }
+      `}</style>
     </section>
   )
 }
