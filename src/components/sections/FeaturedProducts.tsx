@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Card, CardContent } from '@/components/ui/card'
@@ -33,12 +34,41 @@ interface FeaturedProductsProps {
 }
 
 export default function FeaturedProducts({ products, whatsappNumber }: FeaturedProductsProps) {
+  const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (products.length <= 1 || !scrollRef.current) {
+      return
+    }
+
+    const container = scrollRef.current
+    const step = () => {
+      if (!container) return
+
+      const card = container.querySelector<HTMLElement>('[data-featured-card="true"]')
+      const cardWidth = card?.offsetWidth ?? 288
+      const gap = 16
+      const nextLeft = container.scrollLeft + cardWidth + gap
+      const maxScroll = container.scrollWidth - container.clientWidth
+
+      if (nextLeft >= maxScroll - 8) {
+        container.scrollTo({ left: 0, behavior: 'smooth' })
+        return
+      }
+
+      container.scrollTo({ left: nextLeft, behavior: 'smooth' })
+    }
+
+    const intervalId = window.setInterval(step, 4000)
+
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [products])
+
   if (products.length === 0) {
     return null
   }
-
-  const marqueeProducts = products.length > 1 ? [...products, ...products] : products
-  const animationDuration = Math.max(products.length * 8, 28)
 
   return (
     <section id="featured" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
@@ -65,22 +95,21 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
           <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-white to-transparent sm:w-16" />
 
           <div
-            className="flex w-max gap-4 pb-4 will-change-transform hover:[animation-play-state:paused]"
-            style={{
-              animation: products.length > 1 ? `featured-marquee ${animationDuration}s linear infinite` : 'none',
-            }}
+            ref={scrollRef}
+            className="flex gap-4 overflow-x-auto pb-4 scrollbar-hide scroll-smooth"
           >
-          {marqueeProducts.map((product, index) => {
+          {products.map((product, index) => {
             const topCategory = product.category.parent ?? product.category
 
             return (
             <motion.div
-              key={`${product.id}-${index}`}
+              key={product.id}
               initial={{ opacity: 0, x: 30 }}
               whileInView={{ opacity: 1, x: 0 }}
               viewport={{ once: true }}
-              transition={{ delay: Math.min(index, products.length - 1) * 0.08, duration: 0.4 }}
+              transition={{ delay: index * 0.08, duration: 0.4 }}
               className="w-[16.75rem] shrink-0 sm:w-72"
+              data-featured-card="true"
             >
               <Card className="overflow-hidden border-[#e8e0d4] hover:shadow-lg transition-shadow h-full flex flex-col">
                 <Link href={buildProductPath(product.name, product.id)} className="relative w-full h-56 bg-[#f0ebe3] overflow-hidden block">
@@ -144,17 +173,6 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
           </div>
         </div>
       </div>
-
-      <style jsx>{`
-        @keyframes featured-marquee {
-          0% {
-            transform: translate3d(0, 0, 0);
-          }
-          100% {
-            transform: translate3d(-50%, 0, 0);
-          }
-        }
-      `}</style>
     </section>
   )
 }
