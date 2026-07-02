@@ -76,6 +76,32 @@ export async function getFeaturedProducts() {
   return products.map(normalizeProductGallery)
 }
 
+export async function getLatestProducts(limit = 10) {
+  const products = await db.product.findMany({
+    orderBy: [{ createdAt: 'desc' }],
+    take: limit,
+    include: {
+      category: {
+        select: {
+          id: true,
+          name: true,
+          slug: true,
+          groupNumber: true,
+          parent: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return products.map(normalizeProductGallery)
+}
+
 export async function getCategoryBySlug(slug: string) {
   return db.category.findUnique({
     where: { slug },

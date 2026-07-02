@@ -7,7 +7,7 @@ import StatsSection from '@/components/sections/StatsSection'
 import CategoriesSection from '@/components/sections/CategoriesSection'
 import FeaturedProducts from '@/components/sections/FeaturedProducts'
 import StructuredData from '@/components/site/StructuredData'
-import { getFeaturedProducts, getHomepageCategories, getSiteSettings } from '@/lib/catalog'
+import { getFeaturedProducts, getHomepageCategories, getLatestProducts, getSiteSettings } from '@/lib/catalog'
 import { SITE_NAME, SITE_URL, buildPhoneHref } from '@/lib/site'
 import TrackedExternalLink from '@/components/site/TrackedExternalLink'
 
@@ -21,10 +21,11 @@ export const metadata: Metadata = {
 }
 
 export default async function HomePage() {
-  const [settings, categories, featuredProducts] = await Promise.all([
+  const [settings, categories, featuredProducts, latestProducts] = await Promise.all([
     getSiteSettings(),
     getHomepageCategories(),
     getFeaturedProducts(),
+    getLatestProducts(10),
   ])
 
   const organizationJsonLd = {
@@ -65,6 +66,14 @@ export default async function HomePage() {
         <FeaturedProducts
           products={featuredProducts}
           whatsappNumber={settings.whatsappNumber}
+        />
+        <FeaturedProducts
+          products={latestProducts}
+          whatsappNumber={settings.whatsappNumber}
+          title="Yeni Eklenen Ürünler"
+          description="En son eklenen 10 ürünü hızlıca inceleyin"
+          sectionId="latest-products"
+          leadLabelPrefix="latest"
         />
         <CategoriesSection categories={categories} />
 

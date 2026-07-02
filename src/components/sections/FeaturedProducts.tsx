@@ -31,9 +31,20 @@ interface FeaturedProduct {
 interface FeaturedProductsProps {
   products: FeaturedProduct[]
   whatsappNumber: string
+  title?: string
+  description?: string
+  sectionId?: string
+  leadLabelPrefix?: string
 }
 
-export default function FeaturedProducts({ products, whatsappNumber }: FeaturedProductsProps) {
+export default function FeaturedProducts({
+  products,
+  whatsappNumber,
+  title = 'Öne Çıkan Ürünler',
+  description = 'Hızlı teklif almak için en çok ilgi gören ürünleri inceleyin',
+  sectionId = 'featured',
+  leadLabelPrefix = 'featured',
+}: FeaturedProductsProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -71,7 +82,7 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
   }
 
   return (
-    <section id="featured" className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
+    <section id={sectionId} className="py-16 px-4 sm:px-6 lg:px-8 bg-white">
       <div className="max-w-6xl mx-auto">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -82,10 +93,10 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
         >
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-[#3d2c1e] mb-2">
-              Öne Çıkan Ürünler
+              {title}
             </h2>
             <p className="text-[#8b7355]">
-              Hızlı teklif almak için en çok ilgi gören ürünleri inceleyin
+              {description}
             </p>
           </div>
         </motion.div>
@@ -159,7 +170,7 @@ export default function FeaturedProducts({ products, whatsappNumber }: FeaturedP
                     target="_blank"
                     rel="noopener noreferrer"
                     leadType="whatsapp"
-                    leadLabel={`featured_${product.id}`}
+                    leadLabel={`${leadLabelPrefix}_${product.id}`}
                     className="inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium text-white mt-auto"
                     style={{ backgroundColor: '#25D366' }}
                   >
