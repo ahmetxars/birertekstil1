@@ -62,11 +62,11 @@ export default async function HomePage() {
           phone={settings.phone}
         />
         <StatsSection />
-        <CategoriesSection categories={categories} />
         <FeaturedProducts
           products={featuredProducts}
           whatsappNumber={settings.whatsappNumber}
         />
+        <CategoriesSection categories={categories} />
 
         <section className="py-16 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8 items-start">
