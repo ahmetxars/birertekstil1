@@ -65,9 +65,9 @@ function ProductListCard({ product }: { product: Product }) {
       animate={{ opacity: 1, y: 0 }}
       className="h-full"
     >
-      <Card className="overflow-hidden rounded-[1.75rem] border border-[#eadfce] bg-white shadow-[0_14px_35px_rgba(93,67,37,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_40px_rgba(93,67,37,0.12)] sm:rounded-3xl">
+      <Card className="overflow-hidden rounded-[1.35rem] border border-[#eadfce] bg-white shadow-[0_10px_24px_rgba(93,67,37,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_34px_rgba(93,67,37,0.12)] sm:rounded-3xl">
         <Link href={productHref} className="group block h-full">
-          <div className="relative aspect-[0.84] bg-[#f0ebe3] sm:h-96 sm:aspect-auto">
+          <div className="relative aspect-[0.92] bg-[#f0ebe3] sm:h-96 sm:aspect-auto">
             {activeImage ? (
               <Image
                 src={activeImage}
@@ -100,35 +100,35 @@ function ProductListCard({ product }: { product: Product }) {
             )}
           </div>
 
-          <CardContent className="space-y-3 p-3.5 sm:p-5">
+          <CardContent className="flex min-h-[10rem] flex-col p-3 sm:min-h-0 sm:p-5">
             {variantCount > 1 && (
-              <div className="-mt-8 flex justify-end pr-2 sm:-mt-9">
-                <span className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-[12px] font-medium text-[#4a3826] shadow-[0_8px_16px_rgba(93,67,37,0.14)] ring-1 ring-[#efe5d6]">
+              <div className="-mt-7 mb-2 flex justify-end pr-1 sm:-mt-9 sm:mb-3 sm:pr-2">
+                <span className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-[#4a3826] shadow-[0_8px_16px_rgba(93,67,37,0.14)] ring-1 ring-[#efe5d6] sm:px-3 sm:py-1.5 sm:text-[12px]">
                   <span className="flex items-center gap-0.5">
-                    <span className="h-3.5 w-3.5 rounded-full bg-[linear-gradient(135deg,#5f7cff,#56d9ff)]" />
-                    <span className="-ml-1.5 h-3.5 w-3.5 rounded-full bg-[linear-gradient(135deg,#9cf79a,#f7d66e)] ring-2 ring-white" />
-                    <span className="-ml-1.5 h-3.5 w-3.5 rounded-full bg-[linear-gradient(135deg,#ff87d5,#ffd48c)] ring-2 ring-white" />
+                    <span className="h-3 w-3 rounded-full bg-[linear-gradient(135deg,#5f7cff,#56d9ff)] sm:h-3.5 sm:w-3.5" />
+                    <span className="-ml-1 h-3 w-3 rounded-full bg-[linear-gradient(135deg,#9cf79a,#f7d66e)] ring-2 ring-white sm:-ml-1.5 sm:h-3.5 sm:w-3.5" />
+                    <span className="-ml-1 h-3 w-3 rounded-full bg-[linear-gradient(135deg,#ff87d5,#ffd48c)] ring-2 ring-white sm:-ml-1.5 sm:h-3.5 sm:w-3.5" />
                   </span>
                   +{variantCount - 1} Renk
                 </span>
               </div>
             )}
 
-            <div className="space-y-2">
-              <p className="text-[13px] font-medium text-[#8b7355]">
+            <div className="space-y-1.5">
+              <p className="line-clamp-1 text-[12px] font-medium text-[#8b7355] sm:text-[13px]">
                 {topLabel}
               </p>
-              <h2 className="line-clamp-2 text-[1.35rem] font-semibold leading-[1.08] tracking-[-0.03em] text-[#3d2c1e] transition-colors group-hover:text-[#a67c52] sm:text-2xl">
+              <h2 className="line-clamp-2 min-h-[3.35rem] break-words text-[1.16rem] font-semibold leading-[1.12] tracking-[-0.03em] text-[#3d2c1e] transition-colors group-hover:text-[#a67c52] sm:min-h-0 sm:text-2xl">
                 {product.name}
               </h2>
             </div>
             {product.description && (
-              <p className="line-clamp-3 text-[0.98rem] leading-relaxed text-[#8b7355] sm:line-clamp-4 sm:text-base">
+              <p className="mt-2 hidden line-clamp-3 text-[0.98rem] leading-relaxed text-[#8b7355] sm:block sm:line-clamp-4 sm:text-base">
                 {product.description}
               </p>
             )}
-            <div className="pt-1">
-              <span className="text-sm font-medium text-[#9b7a3e] transition-colors group-hover:text-[#805f2c]">
+            <div className="mt-auto pt-3">
+              <span className="text-[13px] font-medium text-[#9b7a3e] transition-colors group-hover:text-[#805f2c] sm:text-sm">
                 Detaylari gor
               </span>
             </div>
@@ -166,7 +166,7 @@ export default function CategoryProducts({
         <motion.nav
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-6 flex items-center gap-2 text-sm text-[#8b7355]"
+          className="mb-4 hidden items-center gap-2 text-sm text-[#8b7355] sm:flex"
         >
           <Link href="/" className="flex items-center gap-1 hover:text-[#a67c52] transition-colors">
             <Home className="h-4 w-4" />
@@ -187,10 +187,10 @@ export default function CategoryProducts({
               {category.groupNumber}
             </div>
             <div className="space-y-2">
-              <h1 className="text-balance text-[2.4rem] font-bold leading-[0.98] tracking-[-0.05em] text-[#3d2c1e] sm:text-3xl md:text-4xl">
+              <h1 className="text-balance text-[2.05rem] font-bold leading-[0.98] tracking-[-0.05em] text-[#3d2c1e] sm:text-3xl md:text-4xl">
                 {category.name}
               </h1>
-              <p className="text-base text-[#8b7355] sm:hidden">
+              <p className="text-[15px] text-[#8b7355] sm:hidden">
                 {visibleProducts.length} urun bulundu
               </p>
             </div>
@@ -208,12 +208,12 @@ export default function CategoryProducts({
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15 }}
-            className="mb-6 grid grid-cols-2 gap-3 sm:hidden"
+            className="mb-5 grid grid-cols-2 gap-3 sm:hidden"
           >
             <button
               type="button"
               onClick={() => setSortMode((current) => current === 'featured' ? 'alphabetical' : 'featured')}
-              className="flex items-center justify-center gap-2 rounded-none bg-[#92763a] px-4 py-4 text-sm font-semibold uppercase tracking-[0.06em] text-white transition-transform duration-200 active:scale-[0.98]"
+              className="flex items-center justify-center gap-2 rounded-[0.9rem] bg-[#92763a] px-4 py-3.5 text-[13px] font-semibold uppercase tracking-[0.05em] text-white transition-transform duration-200 active:scale-[0.98]"
             >
               <ArrowDownUp className="h-4 w-4" />
               {sortMode === 'featured' ? 'Siralama' : 'A-Z Siralama'}
@@ -221,7 +221,7 @@ export default function CategoryProducts({
             <button
               type="button"
               onClick={() => setStockOnly((current) => !current)}
-              className={`flex items-center justify-center gap-2 rounded-none px-4 py-4 text-sm font-semibold uppercase tracking-[0.06em] transition-transform duration-200 active:scale-[0.98] ${
+              className={`flex items-center justify-center gap-2 rounded-[0.9rem] px-4 py-3.5 text-[13px] font-semibold uppercase tracking-[0.05em] transition-transform duration-200 active:scale-[0.98] ${
                 stockOnly ? 'bg-[#3d2c1e] text-white' : 'bg-[#92763a] text-white'
               }`}
             >
@@ -243,7 +243,7 @@ export default function CategoryProducts({
             </Button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-x-3 gap-y-5 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+          <div className="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
             {visibleProducts.map((product) => (
               <ProductListCard key={product.id} product={product} />
             ))}
