@@ -58,6 +58,7 @@ interface HeroSectionProps {
   heroSubtitle: string
   whatsappNumber: string
   phone: string
+  compact?: boolean
 }
 
 export default function HeroSection({
@@ -65,11 +66,18 @@ export default function HeroSection({
   heroSubtitle,
   whatsappNumber,
   phone,
+  compact = false,
 }: HeroSectionProps) {
   const displayText = useTypingEffect(typingText, 35, 1200, 4000)
 
   return (
-    <section className="relative w-full h-[70vh] min-h-[540px] max-h-[820px] overflow-hidden">
+    <section
+      className={`relative w-full overflow-hidden ${
+        compact
+          ? 'min-h-[420px] py-20'
+          : 'h-[70vh] min-h-[540px] max-h-[820px]'
+      }`}
+    >
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
         style={{ backgroundImage: "url('/hero-bg.png')" }}
@@ -80,7 +88,11 @@ export default function HeroSection({
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, ease: 'easeOut' }}
-        className="relative z-10 flex flex-col items-center justify-center h-full text-center px-4"
+        className={`relative z-10 flex h-full px-4 ${
+          compact
+            ? 'mx-auto max-w-6xl flex-col justify-center text-left items-start'
+            : 'flex-col items-center justify-center text-center'
+        }`}
       >
         <motion.p
           initial={{ opacity: 0, y: 20 }}
@@ -95,7 +107,11 @@ export default function HeroSection({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.6 }}
-          className="text-3xl md:text-5xl lg:text-6xl font-bold text-white leading-tight max-w-4xl mb-6"
+          className={`font-bold text-white leading-tight mb-6 ${
+            compact
+              ? 'max-w-3xl text-3xl md:text-5xl'
+              : 'max-w-4xl text-3xl md:text-5xl lg:text-6xl'
+          }`}
         >
           {heroTitle}
         </motion.h1>
@@ -104,7 +120,9 @@ export default function HeroSection({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.6, duration: 0.6 }}
-          className="text-white/80 text-base md:text-lg max-w-2xl mb-8 h-[56px] flex items-center justify-center"
+          className={`text-white/80 text-base md:text-lg max-w-2xl mb-8 flex items-center ${
+            compact ? 'min-h-[56px] justify-start' : 'h-[56px] justify-center'
+          }`}
         >
           <span>
             {displayText}

@@ -56,16 +56,48 @@ export default async function HomePage() {
       <StructuredData data={[organizationJsonLd, websiteJsonLd]} />
       <Header />
       <main>
-        <HeroSection
-          heroTitle={settings.heroTitle}
-          heroSubtitle={settings.heroSubtitle}
-          whatsappNumber={settings.whatsappNumber}
-          phone={settings.phone}
-        />
-        <StatsSection />
+        <section className="border-b border-[#e8e0d4] bg-[#f8f5f0] px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-6xl flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <p className="mb-3 text-sm uppercase tracking-[0.22em] text-[#a67c52]">
+                Koleksiyon İlk Ekranda
+              </p>
+              <h1 className="text-3xl font-bold leading-tight text-[#3d2c1e] md:text-5xl">
+                Aradığınız ürünleri doğrudan görün, fiyat için tek tıkla bize ulaşın.
+              </h1>
+              <p className="mt-4 max-w-2xl text-base leading-relaxed text-[#8b7355] md:text-lg">
+                Pike, nevresim, keten ve daha fazlası şimdi doğrudan ana sayfanın başında.
+                Tanıtım içerikleri aşağıda, ürünler ise karar vermeyi hızlandıracak şekilde önde.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:min-w-[360px]">
+              <div className="rounded-2xl border border-[#e8e0d4] bg-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a67c52]">
+                  Hızlı Seçim
+                </p>
+                <p className="mt-2 text-sm text-[#5f4a36]">
+                  En çok ilgi gören ve yeni eklenen ürünler üstte listelenir.
+                </p>
+              </div>
+              <div className="rounded-2xl border border-[#e8e0d4] bg-white p-4 shadow-sm">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#a67c52]">
+                  Hızlı İletişim
+                </p>
+                <p className="mt-2 text-sm text-[#5f4a36]">
+                  Beğendiğiniz üründen doğrudan WhatsApp ile fiyat isteyebilirsiniz.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <FeaturedProducts
           products={featuredProducts}
           whatsappNumber={settings.whatsappNumber}
+          title="Öne Çıkan Ürünler"
+          description="Ana sayfaya girer girmez inceleyebileceğiniz öne çıkan ürünler"
+          sectionId="homepage-products"
         />
         <FeaturedProducts
           products={latestProducts}
@@ -76,6 +108,7 @@ export default async function HomePage() {
           leadLabelPrefix="latest"
         />
         <CategoriesSection categories={categories} />
+        <StatsSection />
 
         <section className="py-16 px-4 sm:px-6 lg:px-8">
           <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[1.1fr_0.9fr] gap-8 items-start">
@@ -138,6 +171,14 @@ export default async function HomePage() {
             </div>
           </div>
         </section>
+
+        <HeroSection
+          heroTitle={settings.heroTitle}
+          heroSubtitle={settings.heroSubtitle}
+          whatsappNumber={settings.whatsappNumber}
+          phone={settings.phone}
+          compact
+        />
       </main>
       <Footer settings={settings} />
       <WhatsAppFloat whatsappNumber={settings.whatsappNumber} />
